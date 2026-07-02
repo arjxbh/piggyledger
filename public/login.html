@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Allowance Tracker</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-title"><span class="coin"></span> Allowance Tracker</div>
+    <div class="login-sub" id="subtitle">Tap your name to sign in</div>
+
+    <div class="profile-grid" id="profileGrid"></div>
+
+    <div class="auth-panel hidden" id="authPanel">
+      <div class="name" id="authName"></div>
+      <div id="passwordBlock" class="hidden">
+        <div class="form-row">
+          <input type="password" id="passwordInput" placeholder="Password" autofocus>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" style="width:100%" id="passwordSubmit">Sign in</button>
+        </div>
+      </div>
+      <div id="pinBlock" class="hidden">
+        <div class="pin-display" id="pinDisplay"></div>
+        <div class="pin-pad" id="pinPad"></div>
+      </div>
+      <div class="error-msg" id="errorMsg"></div>
+      <button class="back-link" id="backBtn">&larr; choose a different profile</button>
+    </div>
+  </div>
+
+  <script src="/js/login.js"></script>
+</body>
+</html>
