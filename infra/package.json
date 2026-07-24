@@ -1,0 +1,21 @@
+{
+  "name": "piggyledger-cdk",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy --require-approval never"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.173.1",
+    "constructs": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.15",
+    "aws-cdk": "^2.173.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}

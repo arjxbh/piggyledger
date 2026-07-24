@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Chores</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="coin"></span> Allowance Tracker</div>
+    <div class="who">
+      <span id="whoName"></span>
+      <button class="logout" id="logoutBtn">Log out</button>
+    </div>
+  </div>
+
+  <main>
+    <div class="balance-hero">
+      <div>
+        <h1 id="greeting">Hi!</h1>
+        <div class="muted">Here's what's on your list</div>
+      </div>
+      <div>
+        <div class="muted" style="text-align:right;">My balance</div>
+        <div class="amount" id="balanceAmt">$0.00</div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>My chores</h2>
+    </div>
+    <div class="ticket-list" id="choreList"></div>
+
+    <div class="card" style="margin-top:26px;">
+      <div class="section-head">
+        <h2>My history</h2>
+      </div>
+      <table id="ledgerTable">
+        <thead><tr><th>Date</th><th>Reason</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="/js/kid.js"></script>
+</body>
+</html>

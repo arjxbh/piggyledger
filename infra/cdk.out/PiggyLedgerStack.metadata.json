@@ -1,0 +1,321 @@
+{
+  "/PiggyLedgerStack": [
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    },
+    {
+      "type": "aws:cdk:error",
+      "data": "You are not authorized to perform this operation. User: arn:aws:iam::294281109519:user/arjxbhiam1 is not authorized to perform: ec2:DescribeAvailabilityZones because no identity-based policy allows the ec2:DescribeAvailabilityZones action",
+      "trace": [
+        "Annotations.addMessage (/Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/core/lib/annotations.js:1:3506)",
+        "Annotations.addError (/Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2738)",
+        "Annotations._addTrackableError (/Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2837)",
+        "Function.getValue (/Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/core/lib/context-provider.js:2:1906)",
+        "PiggyLedgerStack.get availabilityZones [as availabilityZones] (/Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/core/lib/stack.js:1:16139)",
+        "new Vpc2 (/Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:19312)",
+        "new Vpc2 (/Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:27:17)",
+        "Object.<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "Module._compile (node:internal/modules/cjs/loader:1469:14)",
+        "Module.m._compile (/Users/arjxbh/code/piggyledger/infra/node_modules/ts-node/src/index.ts:1618:23)",
+        "Module._extensions..js (node:internal/modules/cjs/loader:1548:10)",
+        "Object.require.extensions.<computed> [as .ts] (/Users/arjxbh/code/piggyledger/infra/node_modules/ts-node/src/index.ts:1621:12)",
+        "Module.load (node:internal/modules/cjs/loader:1288:32)",
+        "Function.Module._load (node:internal/modules/cjs/loader:1104:12)",
+        "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)",
+        "phase4 (/Users/arjxbh/code/piggyledger/infra/node_modules/ts-node/src/bin.ts:649:14)",
+        "bootstrap (/Users/arjxbh/code/piggyledger/infra/node_modules/ts-node/src/bin.ts:95:10)",
+        "main (/Users/arjxbh/code/piggyledger/infra/node_modules/ts-node/src/bin.ts:55:10)",
+        "Object.<anonymous> (/Users/arjxbh/code/piggyledger/infra/node_modules/ts-node/src/bin.ts:800:3)",
+        "Module._compile (node:internal/modules/cjs/loader:1469:14)",
+        "Object.Module._extensions..js (node:internal/modules/cjs/loader:1548:10)",
+        "Module.load (node:internal/modules/cjs/loader:1288:32)",
+        "Function.Module._load (node:internal/modules/cjs/loader:1104:12)",
+        "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)",
+        "node:internal/main/run_main_module:28:49"
+      ]
+    },
+    {
+      "type": "aws:cdk:error-code",
+      "data": "ContextProviderError"
+    }
+  ],
+  "/PiggyLedgerStack/SsmParameterValue:--aws--service--ami-amazon-linux-latest--al2023-ami-kernel-6.1-x86_64:C96584B6-F00A-464E-AD19-53AFF4B05118.Parameter": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Instance2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:112:22)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/PublicIp": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PublicIp"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:134:5)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/AppUrl": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AppUrl"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:139:5)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/Vpc/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Vpc8378EB38"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Vpc2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:27:17)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/Vpc/IGW": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcIGWD7BA715C"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Vpc2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:27:17)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/Vpc/VPCGW": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcVPCGWBF912B6E"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Vpc2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:27:17)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/SecurityGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SecurityGroupDD263621"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new SecurityGroup2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:38:27)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/InstanceRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "InstanceRole3CCE2F1D"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Role2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:46:18)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/SessionSecret/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SessionSecretC41FBD23"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Secret2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:54:27)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/Instance/InstanceProfile": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "InstanceInstanceProfileAB5AEF02"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Instance2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:112:22)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/Instance/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "InstanceC1063A87"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Instance2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:112:22)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib, node internals...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/Vpc/publicSubnet1/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1Subnet2BB74ED7"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        ".../Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:268 in aws-cdk-lib...",
+        "Array.forEach (:)",
+        "...aws-cdk-lib..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/Vpc/publicSubnet1/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1RouteTable15C15F8E"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        ".../Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:268 in aws-cdk-lib...",
+        "Array.forEach (:)",
+        "...aws-cdk-lib..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/Vpc/publicSubnet1/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1RouteTableAssociation4E83B6E4"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        ".../Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:268 in aws-cdk-lib...",
+        "Array.forEach (:)",
+        "...aws-cdk-lib..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/Vpc/publicSubnet1/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcpublicSubnet1DefaultRouteB88F9E93"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        ".../Users/arjxbh/code/piggyledger/infra/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:208 in aws-cdk-lib...",
+        "Array.forEach (:)",
+        "...new Vpc2 in aws-cdk-lib...",
+        "new PiggyLedgerStack (/Users/arjxbh/code/piggyledger/infra/lib/piggyledger-stack.ts:27:17)",
+        "<anonymous> (/Users/arjxbh/code/piggyledger/infra/bin/piggyledger-cdk.ts:9:1)",
+        "...node internals, ts-node..."
+      ]
+    }
+  ],
+  "/PiggyLedgerStack/InstanceRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "InstanceRoleDefaultPolicy1531605C"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ]
+}
