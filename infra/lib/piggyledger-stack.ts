@@ -42,6 +42,7 @@ export class PiggyLedgerStack extends cdk.Stack {
     });
 
     securityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), 'HTTP from anywhere');
+    securityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'HTTPS from anywhere');
 
     const role = new iam.Role(this, 'InstanceRole', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
@@ -93,7 +94,7 @@ export class PiggyLedgerStack extends cdk.Stack {
       'chmod 755 /opt/piggyledger',
       'systemctl daemon-reload',
       'systemctl enable --now piggyledger',
-      'cat > /etc/nginx/conf.d/piggyledger.conf <<EOF',
+      "cat > /etc/nginx/conf.d/piggyledger.conf <<'EOF'",
       'server {',
       '    listen 80;',
       '    server_name _;',
@@ -122,7 +123,7 @@ export class PiggyLedgerStack extends cdk.Stack {
         : undefined,
       role,
       userData,
-      associatePublicIpAddress: true,
+      associatePublicIpAddress: false,
       blockDevices: [
         {
           deviceName: '/dev/xvda',
@@ -133,13 +134,22 @@ export class PiggyLedgerStack extends cdk.Stack {
       ],
     });
 
-    new cdk.CfnOutput(this, 'PublicIp', {
-      value: instance.instancePublicIp,
-      description: 'Public IP address of the EC2 instance',
+    const elasticIp = new ec2.CfnEIP(this, 'ElasticIp', {
+      domain: 'vpc',
+    });
+
+    new ec2.CfnEIPAssociation(this, 'ElasticIpAssociation', {
+      allocationId: elasticIp.attrAllocationId,
+      instanceId: instance.instanceId,
+    });
+
+    new cdk.CfnOutput(this, 'ElasticIpOutput', {
+      value: elasticIp.ref,
+      description: 'Elastic IP address allocated to the EC2 instance',
     });
 
     new cdk.CfnOutput(this, 'AppUrl', {
-      value: `http://${instance.instancePublicIp}`,
+      value: `http://${elasticIp.ref}`,
       description: 'URL for the deployed PiggyLedger application',
     });
   }
