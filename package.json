@@ -1,7 +1,7 @@
 {
-  "name": "allowance-tracker",
+  "name": "piggy-ledger",
   "version": "1.0.0",
-  "description": "Self-hosted family allowance / chore tracker",
+  "description": "Self-hosted family chore and allowance ledger",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

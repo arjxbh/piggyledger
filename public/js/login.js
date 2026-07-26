@@ -9,11 +9,106 @@ const initials = (name) => name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).j
 
 let currentUser = null;
 let pin = '';
+let qrStream = null;
+let qrScanning = false;
+
+function getAccessToken() {
+  const urlToken = new URLSearchParams(window.location.search).get('access_token');
+  if (urlToken) {
+    localStorage.setItem('piggyledger_access_token', urlToken);
+    history.replaceState(null, '', window.location.pathname);
+    return urlToken;
+  }
+  return localStorage.getItem('piggyledger_access_token');
+}
+
+function accessHeaders() {
+  const token = getAccessToken();
+  return token ? { 'X-Access-Token': token } : {};
+}
+
+function setLoginSubtitle(text) {
+  const subtitle = document.getElementById('subtitle');
+  if (subtitle) subtitle.textContent = text;
+}
+
+function updateAccessTokenStatus() {
+  const token = getAccessToken();
+  if (token) {
+    setLoginSubtitle('Access token loaded. Tap your name to sign in.');
+  } else {
+    setLoginSubtitle('Access token required. Scan a QR or open a login link with access_token.');
+  }
+}
+
+function parseAccessTokenFromUrlSearch(search) {
+  return new URLSearchParams(search).get('access_token');
+}
+
+function handleNewAccessToken(token) {
+  localStorage.setItem('piggyledger_access_token', token);
+  setLoginSubtitle('Access token received. Tap your name to sign in.');
+}
+
+async function fetchWithToken(url, options = {}) {
+  options.headers = { ...(options.headers || {}), ...accessHeaders() };
+  return fetch(url, options);
+}
+
+async function loadProfiles() {
+  const grid = document.getElementById('profileGrid');
+  setLoginSubtitle('Loading profiles…');
+
+  try {
+    const res = await fetchWithToken('/api/users/public');
+    if (!res.ok) {
+      grid.innerHTML = '';
+      if (res.status === 401) {
+        setLoginSubtitle('Access token missing or invalid. Scan a valid access token QR.');
+      } else {
+        setLoginSubtitle('Unable to load profiles. Please try again.');
+      }
+      return false;
+    }
+
+    const users = await res.json();
+    setLoginSubtitle('Access token loaded. Tap your name to sign in.');
+
+    if (users.length === 0) {
+      grid.innerHTML = `<div class="empty">No profiles yet.</div>`;
+      return true;
+    }
+
+    grid.innerHTML = users.map(u => `
+      <button class="profile-tile" data-id="${u.id}" data-role="${u.role}" data-name="${u.name}" style="border:none;">
+        <div class="avatar" style="background:${colorFor(u.name)}">${initials(u.name)}</div>
+        <div class="name">${u.name}</div>
+        <div class="role">${u.role === 'adult' ? 'Adult' : 'Kid'}</div>
+      </button>
+    `).join('');
+
+    grid.querySelectorAll('.profile-tile').forEach(tile => {
+      tile.addEventListener('click', () => selectProfile(tile));
+    });
+    return true;
+  } catch (err) {
+    grid.innerHTML = '';
+    setLoginSubtitle('Unable to load profiles. Check your connection and try again.');
+    return false;
+  }
+}
 
 async function init() {
+  const urlToken = parseAccessTokenFromUrlSearch(window.location.search);
+  if (urlToken) {
+    handleNewAccessToken(urlToken);
+    history.replaceState(null, '', window.location.pathname);
+  }
+  updateAccessTokenStatus();
+
   // If already logged in, go straight to the right dashboard
   try {
-    const meRes = await fetch('/api/me');
+    const meRes = await fetchWithToken('/api/me');
     if (meRes.ok) {
       const { user } = await meRes.json();
       location.href = user.role === 'adult' ? '/adult.html' : '/kid.html';
@@ -21,26 +116,7 @@ async function init() {
     }
   } catch (e) { /* not logged in, continue */ }
 
-  const res = await fetch('/api/users/public');
-  const users = await res.json();
-  const grid = document.getElementById('profileGrid');
-
-  if (users.length === 0) {
-    grid.innerHTML = `<div class="empty">No profiles yet.</div>`;
-    return;
-  }
-
-  grid.innerHTML = users.map(u => `
-    <button class="profile-tile" data-id="${u.id}" data-role="${u.role}" data-name="${u.name}" style="border:none;">
-      <div class="avatar" style="background:${colorFor(u.name)}">${initials(u.name)}</div>
-      <div class="name">${u.name}</div>
-      <div class="role">${u.role === 'adult' ? 'Adult' : 'Kid'}</div>
-    </button>
-  `).join('');
-
-  grid.querySelectorAll('.profile-tile').forEach(tile => {
-    tile.addEventListener('click', () => selectProfile(tile));
-  });
+  await loadProfiles();
 }
 
 function selectProfile(tile) {
@@ -90,7 +166,7 @@ function onPinKey(key) {
 }
 
 async function attemptLogin(secret) {
-  const res = await fetch('/api/login', {
+  const res = await fetchWithToken('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId: currentUser.id, secret })
@@ -106,6 +182,66 @@ async function attemptLogin(secret) {
   }
 }
 
+function startQrScan() {
+  const video = document.getElementById('qrVideo');
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (!context) return;
+
+  qrScanning = true;
+  document.getElementById('scanModal').classList.remove('hidden');
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      qrStream = stream;
+      video.srcObject = stream;
+      video.play();
+      scanFrame();
+    })
+    .catch(() => {
+      alert('Unable to access the camera. Please use a login link with access_token instead.');
+      stopQrScan();
+    });
+
+  function scanFrame() {
+    if (!qrScanning) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code && code.data) {
+        try {
+          const url = new URL(code.data);
+          const accessToken = url.searchParams.get('access_token');
+          if (accessToken) {
+            handleNewAccessToken(accessToken);
+            stopQrScan();
+            loadProfiles();
+            return;
+          }
+        } catch (err) {
+          // ignore invalid QR code data
+        }
+      }
+    }
+    requestAnimationFrame(scanFrame);
+  }
+}
+
+function stopQrScan() {
+  qrScanning = false;
+  const video = document.getElementById('qrVideo');
+  if (qrStream) {
+    qrStream.getTracks().forEach(track => track.stop());
+    qrStream = null;
+  }
+  video.pause();
+  video.srcObject = null;
+  document.getElementById('scanModal').classList.add('hidden');
+}
+
 document.getElementById('passwordSubmit').addEventListener('click', () => {
   const val = document.getElementById('passwordInput').value;
   if (!val) return;
@@ -119,5 +255,8 @@ document.getElementById('backBtn').addEventListener('click', () => {
   document.getElementById('profileGrid').classList.remove('hidden');
   document.getElementById('errorMsg').textContent = '';
 });
+document.getElementById('scanTokenBtn').addEventListener('click', () => startQrScan());
+document.getElementById('stopScanBtn').addEventListener('click', () => stopQrScan());
+document.getElementById('cancelScanBtn').addEventListener('click', () => stopQrScan());
 
 init();

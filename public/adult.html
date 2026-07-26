@@ -3,14 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Allowance Tracker — Adult</title>
+<title>Piggy Ledger — Adult</title>
+<link rel="icon" type="image/png" href="/images/piggy-ledger-logo.png">
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <div class="topbar">
-    <div class="brand"><span class="coin"></span> Allowance Tracker</div>
+    <div class="brand"><img class="brand-logo" src="/images/piggy-ledger-logo.png" alt=""> Piggy Ledger</div>
     <div class="who">
       <span id="whoName"></span>
+      <button class="btn btn-ghost" id="showTokenBtn">Access token</button>
+      <button class="btn btn-ghost" id="changePasswordBtn">Change password</button>
       <button class="logout" id="logoutBtn">Log out</button>
     </div>
   </div>
@@ -174,6 +177,21 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="tokenModal">
+    <div class="modal">
+      <h2>Access token</h2>
+      <div id="qrcode"></div>
+      <div class="form-row">
+        <label>Scan this QR from the login page or copy the link</label>
+        <textarea id="accessTokenValue" readonly rows="3" style="width:100%; font-family:monospace;"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="closeTokenBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/qrcode.min.js"></script>
   <script src="/js/adult.js"></script>
 </body>
 </html>

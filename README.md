@@ -1,4 +1,4 @@
-# Allowance Tracker
+# Piggy Ledger
 
 A self-hosted family chore & allowance tracker. Runs entirely on your own
 Mac mini, Raspberry Pi, or any spare computer on your home network — no
@@ -32,10 +32,10 @@ If that fails, install Node:
 
 ## 2. Install & run
 
-Copy this `allowance-tracker` folder onto the server machine, then:
+Copy this `piggyledger` folder onto the server machine, then:
 
 ```bash
-cd allowance-tracker
+cd piggyledger
 npm install
 npm start
 ```
@@ -43,7 +43,7 @@ npm start
 You should see:
 
 ```
-Allowance Tracker running at http://localhost:3000
+Piggy Ledger running at http://localhost:3000
 On your local network, use this machine's IP address, e.g. http://192.168.1.X:3000
 ```
 
@@ -107,22 +107,22 @@ restarts. To have it start automatically and stay running:
 
 ```bash
 npm install -g pm2
-pm2 start server.js --name allowance-tracker
+pm2 start server.js --name piggyledger
 pm2 save
 pm2 startup   # follow the printed instructions to enable on-boot startup
 ```
 
 **Raspberry Pi (systemd) alternative:** create
-`/etc/systemd/system/allowance-tracker.service`:
+`/etc/systemd/system/piggyledger.service`:
 
 ```ini
 [Unit]
-Description=Allowance Tracker
+Description=Piggy Ledger
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/node /home/pi/allowance-tracker/server.js
-WorkingDirectory=/home/pi/allowance-tracker
+ExecStart=/usr/bin/node /home/pi/piggyledger/server.js
+WorkingDirectory=/home/pi/piggyledger
 Restart=always
 User=pi
 
@@ -132,7 +132,7 @@ WantedBy=multi-user.target
 
 Then:
 ```bash
-sudo systemctl enable --now allowance-tracker
+sudo systemctl enable --now piggyledger
 ```
 
 ## 6. Data & backups

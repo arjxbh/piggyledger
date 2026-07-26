@@ -3,15 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Allowance Tracker</title>
+<title>Piggy Ledger</title>
+<link rel="icon" type="image/png" href="/images/piggy-ledger-logo.png">
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <div class="login-wrap">
-    <div class="login-title"><span class="coin"></span> Allowance Tracker</div>
+    <div class="login-title"><img class="brand-logo" src="/images/piggy-ledger-logo.png" alt=""> Piggy Ledger</div>
     <div class="login-sub" id="subtitle">Tap your name to sign in</div>
 
     <div class="profile-grid" id="profileGrid"></div>
+    <div class="form-actions" style="margin-top:14px; text-align:center;">
+      <button class="btn btn-ghost" id="scanTokenBtn">Scan access token QR</button>
+    </div>
 
     <div class="auth-panel hidden" id="authPanel">
       <div class="name" id="authName"></div>
@@ -32,6 +36,18 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="scanModal">
+    <div class="modal">
+      <h2>Scan access token QR</h2>
+      <video id="qrVideo" width="320" height="240" autoplay muted playsinline style="width:100%; border-radius:12px; background:#000;"></video>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="stopScanBtn">Stop scan</button>
+        <button class="btn btn-ghost" id="cancelScanBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/jsqr.min.js"></script>
   <script src="/js/login.js"></script>
 </body>
 </html>

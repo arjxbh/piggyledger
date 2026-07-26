@@ -11,8 +11,18 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function accessHeaders() {
+  const token = localStorage.getItem('piggyledger_access_token');
+  return token ? { 'X-Access-Token': token } : {};
+}
+
+async function fetchWithToken(url, options = {}) {
+  options.headers = { ...(options.headers || {}), ...accessHeaders() };
+  return fetch(url, options);
+}
+
 async function init() {
-  const meRes = await fetch('/api/me');
+  const meRes = await fetchWithToken('/api/me');
   if (!meRes.ok) { location.href = '/login.html'; return; }
   const { user } = await meRes.json();
   if (user.role !== 'kid') { location.href = '/adult.html'; return; }
@@ -25,13 +35,13 @@ async function init() {
 }
 
 async function loadBalance() {
-  const res = await fetch(`/api/balance/${me.id}`);
+  const res = await fetchWithToken(`/api/balance/${me.id}`);
   const data = await res.json();
   document.getElementById('balanceAmt').textContent = money(data.balance);
 }
 
 async function loadChores() {
-  const res = await fetch('/api/chores');
+  const res = await fetchWithToken('/api/chores');
   const chores = await res.json();
   const list = document.getElementById('choreList');
 
@@ -75,7 +85,7 @@ async function loadChores() {
 }
 
 async function loadLedger() {
-  const res = await fetch('/api/ledger');
+  const res = await fetchWithToken('/api/ledger');
   const entries = await res.json();
   const body = document.getElementById('ledgerBody');
   if (entries.length === 0) {
@@ -92,7 +102,7 @@ async function loadLedger() {
 }
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
-  await fetch('/api/logout', { method: 'POST' });
+  await fetchWithToken('/api/logout', { method: 'POST' });
   location.href = '/login.html';
 });
 

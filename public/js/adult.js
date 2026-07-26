@@ -2,6 +2,26 @@ let me = null;
 let allUsers = [];
 let allChores = [];
 
+function getAccessToken() {
+  const urlToken = new URLSearchParams(window.location.search).get('access_token');
+  if (urlToken) {
+    localStorage.setItem('piggyledger_access_token', urlToken);
+    history.replaceState(null, '', window.location.pathname);
+    return urlToken;
+  }
+  return localStorage.getItem('piggyledger_access_token');
+}
+
+function accessHeaders() {
+  const token = getAccessToken();
+  return token ? { 'X-Access-Token': token } : {};
+}
+
+async function fetchWithToken(url, options = {}) {
+  options.headers = { ...(options.headers || {}), ...accessHeaders() };
+  return fetch(url, options);
+}
+
 function toCents(dollarStr) {
   return Math.round(parseFloat(dollarStr) * 100);
 }
@@ -29,7 +49,7 @@ function kidName(id) {
 }
 
 async function init() {
-  const meRes = await fetch('/api/me');
+  const meRes = await fetchWithToken('/api/me');
   if (!meRes.ok) { location.href = '/login.html'; return; }
   const { user } = await meRes.json();
   if (user.role !== 'adult') { location.href = '/kid.html'; return; }
@@ -46,7 +66,7 @@ async function init() {
 // ---------- data loading ----------
 
 async function loadUsers() {
-  const res = await fetch('/api/users');
+  const res = await fetchWithToken('/api/users');
   allUsers = await res.json();
 
   const kids = allUsers.filter(u => u.role === 'kid');
@@ -63,20 +83,20 @@ async function loadUsers() {
 }
 
 async function loadChores() {
-  const res = await fetch('/api/chores');
+  const res = await fetchWithToken('/api/chores');
   allChores = await res.json();
   renderChores();
 }
 
 async function loadBalances() {
-  const res = await fetch('/api/balances');
+  const res = await fetchWithToken('/api/balances');
   const balances = await res.json();
   renderKidGrid(balances);
 }
 
 async function loadAudit(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  const res = await fetch('/api/ledger' + (qs ? `?${qs}` : ''));
+  const res = await fetchWithToken('/api/ledger' + (qs ? `?${qs}` : ''));
   const entries = await res.json();
   renderAudit(entries);
 }
@@ -220,7 +240,7 @@ async function onCompleteClick(choreId) {
 }
 
 async function completeChore(choreId, kidId) {
-  const res = await fetch(`/api/chores/${choreId}/complete`, {
+  const res = await fetchWithToken(`/api/chores/${choreId}/complete`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ kidId })
@@ -235,20 +255,20 @@ async function completeChore(choreId, kidId) {
 
 async function onReopen(choreId) {
   if (!confirm('Undo this chore? This will reverse the money it earned.')) return;
-  const res = await fetch(`/api/chores/${choreId}/reopen`, { method: 'POST' });
+  const res = await fetchWithToken(`/api/chores/${choreId}/reopen`, { method: 'POST' });
   if (!res.ok) { const { error } = await res.json(); alert(error); return; }
   await Promise.all([loadChores(), loadBalances(), loadAudit()]);
 }
 
 async function onDeleteChore(choreId) {
   if (!confirm('Delete this chore? (Its ledger history, if any, stays intact.)')) return;
-  await fetch(`/api/chores/${choreId}`, { method: 'DELETE' });
+  await fetchWithToken(`/api/chores/${choreId}`, { method: 'DELETE' });
   await loadChores();
 }
 
 async function onRemoveUser(userId) {
   if (!confirm('Remove this person? Their ledger history will be kept for the audit trail.')) return;
-  const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+  const res = await fetchWithToken(`/api/users/${userId}`, { method: 'DELETE' });
   if (!res.ok) { const { error } = await res.json(); alert(error); return; }
   await loadUsers();
   await loadBalances();
@@ -280,6 +300,35 @@ function openResetModal(userId, role, name) {
   document.getElementById('resetModal').classList.remove('hidden');
 }
 
+function openChangePasswordModal() {
+  document.getElementById('resetModal').dataset.user = me.id;
+  document.getElementById('resetTitle').textContent = `Change your password`;
+  document.getElementById('resetLabel').textContent = 'New password';
+  document.getElementById('resetSecret').value = '';
+  document.getElementById('resetModal').classList.remove('hidden');
+}
+
+async function openTokenModal() {
+  const tokenRes = await fetchWithToken('/api/access-token');
+  if (!tokenRes.ok) {
+    alert('Access token not available');
+    return;
+  }
+  const { accessToken } = await tokenRes.json();
+  const shareUrl = `${window.location.origin}/login.html?access_token=${encodeURIComponent(accessToken)}`;
+  document.getElementById('accessTokenValue').value = shareUrl;
+  document.getElementById('qrcode').innerHTML = '';
+  new QRCode(document.getElementById('qrcode'), {
+    text: shareUrl,
+    width: 220,
+    height: 220,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  document.getElementById('tokenModal').classList.remove('hidden');
+}
+
 function wireUp() {
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -296,7 +345,7 @@ function wireUp() {
     const assignedTo = document.getElementById('choreAssign').value || null;
     const repeatable = document.getElementById('choreRepeatable').checked;
     if (!title || !valueStr) { alert('Please enter a title and a value.'); return; }
-    const res = await fetch('/api/chores', {
+    const res = await fetchWithToken('/api/chores', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, value: toCents(valueStr), assignedTo: assignedTo ? Number(assignedTo) : null, repeatable })
@@ -309,7 +358,7 @@ function wireUp() {
   });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/logout', { method: 'POST' });
+    await fetchWithToken('/api/logout', { method: 'POST' });
     location.href = '/login.html';
   });
 
@@ -322,7 +371,7 @@ function wireUp() {
     const amountStr = document.getElementById('adjustAmount').value;
     const reason = document.getElementById('adjustReason').value.trim();
     if (!amountStr || !reason) { alert('Please enter an amount and a reason.'); return; }
-    const res = await fetch('/api/ledger/adjust', {
+    const res = await fetchWithToken('/api/ledger/adjust', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ kidId, amount: toCents(amountStr), reason })
@@ -330,6 +379,9 @@ function wireUp() {
     if (!res.ok) { const { error } = await res.json(); alert(error); return; }
     document.getElementById('adjustModal').classList.add('hidden');
     await Promise.all([loadBalances(), loadAudit()]);
+  });
+  document.getElementById('closeTokenBtn').addEventListener('click', () => {
+    document.getElementById('tokenModal').classList.add('hidden');
   });
 
   // pick kid modal (for unassigned chore completion)
@@ -351,7 +403,7 @@ function wireUp() {
     const userId = Number(document.getElementById('resetModal').dataset.user);
     const secret = document.getElementById('resetSecret').value.trim();
     if (!secret) return;
-    const res = await fetch(`/api/users/${userId}/secret`, {
+    const res = await fetchWithToken(`/api/users/${userId}/secret`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secret })
@@ -361,6 +413,14 @@ function wireUp() {
   });
 
   // role toggle affects the secret label/placeholder on the add-person form
+  document.getElementById('showTokenBtn').addEventListener('click', () => {
+    openTokenModal();
+  });
+
+  document.getElementById('changePasswordBtn').addEventListener('click', () => {
+    openChangePasswordModal();
+  });
+
   document.getElementById('newRole').addEventListener('change', (e) => {
     const isKid = e.target.value === 'kid';
     document.getElementById('newSecretLabel').textContent = isKid ? '4-digit PIN' : 'Password';
@@ -372,7 +432,7 @@ function wireUp() {
     const role = document.getElementById('newRole').value;
     const secret = document.getElementById('newSecret').value.trim();
     if (!name || !secret) { alert('Please enter a name and a PIN/password.'); return; }
-    const res = await fetch('/api/users', {
+    const res = await fetchWithToken('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, role, secret })

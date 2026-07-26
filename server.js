@@ -9,7 +9,28 @@ const { requireLogin, requireAdult } = require('./lib/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isProduction = process.env.NODE_ENV === 'production';
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN || (process.env.NODE_ENV === 'production' ? null : 'change-me-access-token');
+if (process.env.NODE_ENV === 'production' && !ACCESS_TOKEN) {
+  console.error('ACCESS_TOKEN is required in production');
+  process.exit(1);
+}
 
+function requireAccessToken(req, res, next) {
+  if (!ACCESS_TOKEN) return next();
+  if (req.path === '/api/access-token') return next();
+  const token = String(req.headers['x-access-token'] || req.query.access_token || '').trim();
+  if (token !== ACCESS_TOKEN) return res.status(401).json({ error: 'Access token missing or invalid' });
+  next();
+}
+
+app.set('trust proxy', 1);
+app.use((req, res, next) => {
+  if (isProduction && req.secure) {
+    res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
 app.use(express.json());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'change-me-in-a-real-deployment-' + crypto.randomBytes(8).toString('hex'),
@@ -17,10 +38,12 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days - kids' tablets stay logged in
-    sameSite: 'lax'
+    sameSite: 'lax',
+    secure: isProduction
   }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(requireAccessToken);
 
 // ---------- helpers ----------
 
@@ -139,6 +162,11 @@ app.delete('/api/users/:id', requireAdult, async (req, res) => {
     d.users = d.users.filter(u => u.id !== id);
   });
   res.json({ ok: true });
+});
+
+app.get('/api/access-token', requireAdult, (req, res) => {
+  if (!ACCESS_TOKEN) return res.status(404).json({ error: 'Access token not configured' });
+  res.json({ accessToken: ACCESS_TOKEN });
 });
 
 // ---------- chores ----------
@@ -395,6 +423,6 @@ app.get('*', (req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Allowance Tracker running at http://localhost:${PORT}`);
+  console.log(`Piggy Ledger running at http://localhost:${PORT}`);
   console.log(`On your local network, use this machine's IP address, e.g. http://192.168.1.X:${PORT}`);
 });
