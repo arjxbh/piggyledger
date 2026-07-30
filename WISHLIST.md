@@ -3,7 +3,7 @@
 This is a running list of possible future improvements. Items are ideas, not
 committed roadmap work, and can be refined as the product evolves.
 
-## 1. Migrate persistence to DynamoDB
+## 1. Migrate persistence to DynamoDB (core migration implemented)
 
 Replace the local JSON database with DynamoDB so application data survives EC2
 replacement and no longer depends on a single local disk.
@@ -16,7 +16,7 @@ Considerations:
 - Add backup and point-in-time recovery options.
 - Keep usage within DynamoDB's low-cost or free-tier range.
 
-## 2. Support multiple families
+## 2. Support multiple families (core tenant isolation implemented)
 
 Allow multiple independent families to use one PiggyLedger deployment without
 seeing or modifying each other's data.

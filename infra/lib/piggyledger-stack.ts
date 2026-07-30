@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3assets from 'aws-cdk-lib/aws-s3-assets';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
@@ -52,9 +53,31 @@ export class PiggyLedgerStack extends cdk.Stack {
     });
 
     appAsset.bucket.grantRead(role);
+    const table = new dynamodb.Table(this, 'DataTable', {
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: 'expiresAt',
+      encryption: dynamodb.TableEncryption.AWS_MANAGED,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: false,
+      },
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    table.grantReadWriteData(role);
+    role.addToPolicy(new iam.PolicyStatement({
+      actions: ['ses:SendEmail'],
+      resources: [
+        this.formatArn({
+          service: 'ses',
+          resource: 'identity',
+          resourceName: 'piggyledger.net',
+        }),
+      ],
+    }));
+
     const parameterPrefix = `/piggyledger/${this.stackName}`;
     const sessionSecretParameter = `${parameterPrefix}/session-secret`;
-    const accessTokenParameter = `${parameterPrefix}/access-token`;
     role.addToPolicy(new iam.PolicyStatement({
       actions: [
         'ssm:GetParameter',
@@ -76,7 +99,7 @@ export class PiggyLedgerStack extends cdk.Stack {
       'yum install -y git aws-cli openssl unzip dnf-plugins-core',
       'dnf copr enable -y @caddy/caddy',
       'yum install -y caddy',
-      'curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -',
+      'curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -',
       'yum install -y nodejs npm',
       'mkdir -p /opt/piggyledger',
       `aws s3 cp "s3://${appAsset.s3BucketName}/${appAsset.s3ObjectKey}" /tmp/piggyledger.tgz`,
@@ -85,13 +108,13 @@ export class PiggyLedgerStack extends cdk.Stack {
       'npm install --omit=dev',
       'set +x',
       `SESSION_SECRET_PARAMETER="${sessionSecretParameter}"`,
-      `ACCESS_TOKEN_PARAMETER="${accessTokenParameter}"`,
       'if ! aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" >/dev/null 2>&1; then aws ssm put-parameter --name "$SESSION_SECRET_PARAMETER" --type SecureString --tier Standard --value "$(openssl rand -hex 32)"; fi',
-      'if ! aws ssm get-parameter --name "$ACCESS_TOKEN_PARAMETER" >/dev/null 2>&1; then aws ssm put-parameter --name "$ACCESS_TOKEN_PARAMETER" --type SecureString --tier Standard --value "$(openssl rand -hex 32)"; fi',
       'cat > /opt/piggyledger/.env <<EOF',
       'NODE_ENV=production',
       'SESSION_SECRET=$(aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" --with-decryption --query Parameter.Value --output text)',
-      'ACCESS_TOKEN=$(aws ssm get-parameter --name "$ACCESS_TOKEN_PARAMETER" --with-decryption --query Parameter.Value --output text)',
+      `DYNAMODB_TABLE_NAME=${table.tableName}`,
+      'SES_FROM_EMAIL=no-reply@piggyledger.net',
+      'APP_BASE_URL=https://piggyledger.net',
       'PORT=3000',
       'EOF',
       'chmod 600 /opt/piggyledger/.env',
@@ -178,13 +201,12 @@ export class PiggyLedgerStack extends cdk.Stack {
           `aws s3 cp "s3://${appAsset.s3BucketName}/${appAsset.s3ObjectKey}" /tmp/piggyledger-deploy/app.zip`,
           'unzip -oq /tmp/piggyledger-deploy/app.zip -d /opt/piggyledger',
           'if test -f /tmp/piggyledger-deploy/db.json; then mkdir -p /opt/piggyledger/data && cp /tmp/piggyledger-deploy/db.json /opt/piggyledger/data/db.json; fi',
+          'if ! node --version | grep -q "^v24\\."; then curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && yum install -y nodejs; fi',
           'cd /opt/piggyledger && npm install --omit=dev',
           'set +x',
           `SESSION_SECRET_PARAMETER="${sessionSecretParameter}"`,
-          `ACCESS_TOKEN_PARAMETER="${accessTokenParameter}"`,
           'if ! aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" >/dev/null 2>&1; then aws ssm put-parameter --name "$SESSION_SECRET_PARAMETER" --type SecureString --tier Standard --value "$(openssl rand -hex 32)"; fi',
-          'if ! aws ssm get-parameter --name "$ACCESS_TOKEN_PARAMETER" >/dev/null 2>&1; then aws ssm put-parameter --name "$ACCESS_TOKEN_PARAMETER" --type SecureString --tier Standard --value "$(openssl rand -hex 32)"; fi',
-          'cat > /opt/piggyledger/.env <<EOF\nNODE_ENV=production\nSESSION_SECRET=$(aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" --with-decryption --query Parameter.Value --output text)\nACCESS_TOKEN=$(aws ssm get-parameter --name "$ACCESS_TOKEN_PARAMETER" --with-decryption --query Parameter.Value --output text)\nPORT=3000\nEOF',
+          `cat > /opt/piggyledger/.env <<EOF\nNODE_ENV=production\nSESSION_SECRET=$(aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" --with-decryption --query Parameter.Value --output text)\nDYNAMODB_TABLE_NAME=${table.tableName}\nSES_FROM_EMAIL=no-reply@piggyledger.net\nAPP_BASE_URL=https://piggyledger.net\nPORT=3000\nEOF`,
           'chown -R ec2-user:ec2-user /opt/piggyledger',
           'chmod 600 /opt/piggyledger/.env',
           'systemctl restart piggyledger',
@@ -204,6 +226,10 @@ export class PiggyLedgerStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'AppUrl', {
       value: 'https://piggyledger.net',
       description: 'URL for the deployed PiggyLedger application',
+    });
+    new cdk.CfnOutput(this, 'DataTableName', {
+      value: table.tableName,
+      description: 'DynamoDB table used by PiggyLedger',
     });
   }
 }

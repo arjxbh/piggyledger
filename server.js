@@ -5,23 +5,46 @@ const path = require('path');
 const crypto = require('crypto');
 
 const db = require('./lib/db');
+const email = require('./lib/email');
 const { requireLogin, requireAdult } = require('./lib/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN || (process.env.NODE_ENV === 'production' ? null : 'change-me-access-token');
-if (process.env.NODE_ENV === 'production' && !ACCESS_TOKEN) {
-  console.error('ACCESS_TOKEN is required in production');
-  process.exit(1);
+const QR_TOKEN_SECONDS = 10 * 60;
+const PERSISTENT_TOKEN_SECONDS = 90 * 24 * 60 * 60;
+const SIGNUP_TOKEN_SECONDS = 30 * 60;
+const publicApiPaths = new Set([
+  '/api/signup',
+  '/api/signup/verify',
+  '/api/access/request',
+  '/api/health'
+]);
+const requestWindows = new Map();
+
+function rateLimit(key, maxRequests, windowMs) {
+  const now = Date.now();
+  const current = requestWindows.get(key);
+  if (!current || current.resetAt <= now) {
+    requestWindows.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  current.count += 1;
+  return current.count <= maxRequests;
 }
 
-function requireAccessToken(req, res, next) {
-  if (!ACCESS_TOKEN) return next();
-  if (req.path === '/api/access-token') return next();
+async function requireAccessToken(req, res, next) {
+  if (publicApiPaths.has(req.path)) return next();
+  if (req.session?.userId && req.session.familyId) {
+    req.familyId = req.session.familyId;
+    return next();
+  }
   const token = String(req.headers['x-access-token'] || req.query.access_token || '').trim();
-  if (token !== ACCESS_TOKEN) return res.status(401).json({ error: 'Access token missing or invalid' });
-  next();
+  const access = await db.resolveAccessToken(token);
+  if (!access) return res.status(401).json({ error: 'Access token missing or expired', code: 'ACCESS_TOKEN_INVALID' });
+  req.familyId = access.familyId;
+  req.accessTokenKind = access.kind;
+  return next();
 }
 
 app.set('trust proxy', 1);
@@ -42,6 +65,17 @@ app.use(session({
     secure: isProduction
   }
 }));
+app.get('/', (req, res) => {
+  if (req.session.userId) {
+    return res.redirect(req.session.role === 'adult' ? '/adult.html' : '/kid.html');
+  }
+
+  const accessToken = String(req.query.access_token || '').trim();
+  const loginUrl = accessToken
+    ? `/login.html?access_token=${encodeURIComponent(accessToken)}`
+    : '/login.html';
+  res.redirect(loginUrl);
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(requireAccessToken);
 
@@ -57,32 +91,92 @@ function balanceForKid(data, kidId) {
     .reduce((sum, l) => sum + l.amount, 0);
 }
 
-function seedIfEmpty(data) {
-  if (data.users.length === 0) {
-    const adultId = db.nextId(data);
-    data.users.push({
-      id: adultId,
-      name: 'Parent',
-      role: 'adult',
-      username: 'parent',
-      secretHash: bcrypt.hashSync('changeme', 10),
-      color: '#5B7FDE',
-      createdAt: new Date().toISOString()
+// ---------- auth routes ----------
+
+app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+app.post('/api/signup', async (req, res) => {
+  if (!rateLimit(`signup:${req.ip}`, 5, 60 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many signup attempts. Try again later.' });
+  }
+  const familyName = String(req.body.familyName || '').trim();
+  const parentName = String(req.body.parentName || '').trim();
+  const parentEmail = db.normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  if (!familyName || !parentName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail)) {
+    return res.status(400).json({ error: 'Family name, parent name, and a valid email are required' });
+  }
+  if (password.length < 10) {
+    return res.status(400).json({ error: 'Password must be at least 10 characters' });
+  }
+
+  const verification = await db.putSignupVerification({
+    familyName,
+    parentName,
+    email: parentEmail,
+    secretHash: await bcrypt.hash(password, 12)
+  }, SIGNUP_TOKEN_SECONDS);
+  await email.sendSignupVerification(parentEmail, verification.token);
+  res.status(202).json({ ok: true, message: 'Check your email to finish creating your family.' });
+});
+
+app.get('/api/signup/verify', async (req, res) => {
+  const verification = await db.getSignupVerification(String(req.query.token || ''));
+  if (!verification) {
+    return res.redirect('/signup.html?status=expired');
+  }
+  try {
+    const family = await db.createFamily({
+      familyName: verification.familyName,
+      parentName: verification.parentName,
+      email: verification.email,
+      secretHash: verification.secretHash,
+      verificationHash: verification.tokenHash
+    });
+    const access = await db.createAccessToken(family.familyId, PERSISTENT_TOKEN_SECONDS, 'persistent');
+    return res.redirect(`/login.html?access_token=${encodeURIComponent(access.token)}&welcome=1`);
+  } catch (error) {
+    if (error.name === 'TransactionCanceledException') {
+      return res.redirect('/signup.html?status=used');
+    }
+    throw error;
+  }
+});
+
+app.post('/api/access/request', async (req, res) => {
+  const parentEmail = db.normalizeEmail(req.body.email);
+  if (!rateLimit(`access:${req.ip}`, 10, 60 * 60 * 1000)) {
+    return res.status(202).json({
+      ok: true,
+      message: 'If that email belongs to a family, an access link is on its way.'
     });
   }
-}
-
-// ---------- auth routes ----------
+  const families = await db.familiesForEmail(parentEmail);
+  if (families.length > 0) {
+    const links = await Promise.all(families.map(async family => {
+      const access = await db.createAccessToken(family.familyId, PERSISTENT_TOKEN_SECONDS, 'persistent');
+      return {
+        familyName: family.familyName,
+        url: `${email.appBaseUrl}/login.html?access_token=${encodeURIComponent(access.token)}`
+      };
+    }));
+    await email.sendAccessLinks(parentEmail, links);
+  }
+  res.status(202).json({
+    ok: true,
+    message: 'If that email belongs to a family, an access link is on its way.'
+  });
+});
 
 // List of profiles for the login screen (no secrets included)
 app.get('/api/users/public', async (req, res) => {
-  const data = await db.mutate(d => { seedIfEmpty(d); return d; });
+  const data = await db.read(req.familyId);
   res.json(data.users.map(publicUser));
 });
 
 app.post('/api/login', async (req, res) => {
   const { userId, secret } = req.body;
-  const data = db.read();
+  const data = await db.read(req.familyId);
   const user = data.users.find(u => u.id === userId);
   if (!user) return res.status(401).json({ error: 'Unknown user' });
 
@@ -90,6 +184,7 @@ app.post('/api/login', async (req, res) => {
   if (!ok) return res.status(401).json({ error: 'Incorrect password/PIN' });
 
   req.session.userId = user.id;
+  req.session.familyId = req.familyId;
   req.session.role = user.role;
   req.session.name = user.name;
   res.json({ user: publicUser(user) });
@@ -99,9 +194,10 @@ app.post('/api/logout', (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
 
-app.get('/api/me', (req, res) => {
+app.get('/api/me', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
-  const data = db.read();
+  if (req.session.familyId !== req.familyId) return res.status(401).json({ error: 'Not logged in' });
+  const data = await db.read(req.familyId);
   const user = data.users.find(u => u.id === req.session.userId);
   if (!user) return res.status(401).json({ error: 'Not logged in' });
   res.json({ user: publicUser(user) });
@@ -109,8 +205,8 @@ app.get('/api/me', (req, res) => {
 
 // ---------- user management (adults only) ----------
 
-app.get('/api/users', requireAdult, (req, res) => {
-  const data = db.read();
+app.get('/api/users', requireAdult, async (req, res) => {
+  const data = await db.read(req.familyId);
   res.json(data.users.map(publicUser));
 });
 
@@ -122,7 +218,7 @@ app.post('/api/users', requireAdult, async (req, res) => {
     return res.status(400).json({ error: 'Kid PIN must be exactly 4 digits' });
   }
 
-  const user = await db.mutate(d => {
+  const user = await db.mutate(req.familyId, d => {
     const id = db.nextId(d);
     const u = {
       id,
@@ -143,7 +239,7 @@ app.put('/api/users/:id/secret', requireAdult, async (req, res) => {
   const { secret } = req.body;
   if (!secret) return res.status(400).json({ error: 'secret is required' });
 
-  const result = await db.mutate(d => {
+  const result = await db.mutate(req.familyId, d => {
     const u = d.users.find(x => x.id === id);
     if (!u) return null;
     if (u.role === 'kid' && !/^\d{4}$/.test(String(secret))) return 'bad-pin';
@@ -158,21 +254,21 @@ app.put('/api/users/:id/secret', requireAdult, async (req, res) => {
 app.delete('/api/users/:id', requireAdult, async (req, res) => {
   const id = Number(req.params.id);
   if (id === req.session.userId) return res.status(400).json({ error: "You can't delete your own account while logged in" });
-  await db.mutate(d => {
+  await db.mutate(req.familyId, d => {
     d.users = d.users.filter(u => u.id !== id);
   });
   res.json({ ok: true });
 });
 
-app.get('/api/access-token', requireAdult, (req, res) => {
-  if (!ACCESS_TOKEN) return res.status(404).json({ error: 'Access token not configured' });
-  res.json({ accessToken: ACCESS_TOKEN });
+app.post('/api/access-token', requireAdult, async (req, res) => {
+  const access = await db.createAccessToken(req.familyId, QR_TOKEN_SECONDS, 'qr');
+  res.status(201).json({ accessToken: access.token, expiresAt: access.expiresAt });
 });
 
 // ---------- chores ----------
 
-app.get('/api/chores', requireLogin, (req, res) => {
-  const data = db.read();
+app.get('/api/chores', requireLogin, async (req, res) => {
+  const data = await db.read(req.familyId);
   let chores = data.chores;
   if (req.session.role === 'kid') {
     chores = chores.filter(c => c.assignedTo === null || c.assignedTo === req.session.userId);
@@ -185,7 +281,7 @@ app.post('/api/chores', requireAdult, async (req, res) => {
   if (!title || typeof value !== 'number' || value <= 0) {
     return res.status(400).json({ error: 'title and a positive numeric value are required' });
   }
-  const chore = await db.mutate(d => {
+  const chore = await db.mutate(req.familyId, d => {
     const id = db.nextId(d);
     const c = {
       id,
@@ -212,7 +308,7 @@ app.post('/api/chores', requireAdult, async (req, res) => {
 app.put('/api/chores/:id', requireAdult, async (req, res) => {
   const id = Number(req.params.id);
   const { title, value, assignedTo, repeatable } = req.body;
-  const chore = await db.mutate(d => {
+  const chore = await db.mutate(req.familyId, d => {
     const c = d.chores.find(x => x.id === id);
     if (!c) return null;
     if (title !== undefined) c.title = title;
@@ -227,7 +323,7 @@ app.put('/api/chores/:id', requireAdult, async (req, res) => {
 
 app.delete('/api/chores/:id', requireAdult, async (req, res) => {
   const id = Number(req.params.id);
-  await db.mutate(d => { d.chores = d.chores.filter(c => c.id !== id); });
+  await db.mutate(req.familyId, d => { d.chores = d.chores.filter(c => c.id !== id); });
   res.json({ ok: true });
 });
 
@@ -238,7 +334,7 @@ app.post('/api/chores/:id/complete', requireAdult, async (req, res) => {
   const id = Number(req.params.id);
   const { kidId } = req.body; // required if chore.assignedTo is null
 
-  const result = await db.mutate(d => {
+  const result = await db.mutate(req.familyId, d => {
     const c = d.chores.find(x => x.id === id);
     if (!c) return { error: 'not-found' };
     if (!c.repeatable && c.status === 'done') return { error: 'already-done' };
@@ -292,7 +388,7 @@ app.post('/api/chores/:id/complete', requireAdult, async (req, res) => {
 // available (it was never "closed" in the first place).
 app.post('/api/chores/:id/reopen', requireAdult, async (req, res) => {
   const id = Number(req.params.id);
-  const result = await db.mutate(d => {
+  const result = await db.mutate(req.familyId, d => {
     const c = d.chores.find(x => x.id === id);
     if (!c) return { error: 'not-found' };
     if (!c.repeatable && c.status !== 'done') return { error: 'not-done' };
@@ -344,17 +440,17 @@ app.post('/api/chores/:id/reopen', requireAdult, async (req, res) => {
 
 // ---------- balances & ledger (the audit trail) ----------
 
-app.get('/api/balance/:kidId', requireLogin, (req, res) => {
+app.get('/api/balance/:kidId', requireLogin, async (req, res) => {
   const kidId = Number(req.params.kidId);
   if (req.session.role === 'kid' && req.session.userId !== kidId) {
     return res.status(403).json({ error: 'Not your balance' });
   }
-  const data = db.read();
+  const data = await db.read(req.familyId);
   res.json({ kidId, balance: balanceForKid(data, kidId) });
 });
 
-app.get('/api/balances', requireAdult, (req, res) => {
-  const data = db.read();
+app.get('/api/balances', requireAdult, async (req, res) => {
+  const data = await db.read(req.familyId);
   const kids = data.users.filter(u => u.role === 'kid');
   res.json(kids.map(k => ({ kidId: k.id, name: k.name, balance: balanceForKid(data, k.id) })));
 });
@@ -365,11 +461,11 @@ app.post('/api/ledger/adjust', requireAdult, async (req, res) => {
   if (!kidId || typeof amount !== 'number' || amount === 0 || !reason) {
     return res.status(400).json({ error: 'kidId, non-zero numeric amount, and reason are required' });
   }
-  const data = db.read();
+  const data = await db.read(req.familyId);
   const kid = data.users.find(u => u.id === kidId && u.role === 'kid');
   if (!kid) return res.status(400).json({ error: 'Kid not found' });
 
-  const entry = await db.mutate(d => {
+  const entry = await db.mutate(req.familyId, d => {
     const e = {
       id: db.nextId(d),
       kidId,
@@ -388,8 +484,8 @@ app.post('/api/ledger/adjust', requireAdult, async (req, res) => {
 });
 
 // Full audit trail, filterable. Adults see everyone; kids see only their own.
-app.get('/api/ledger', requireLogin, (req, res) => {
-  const data = db.read();
+app.get('/api/ledger', requireLogin, async (req, res) => {
+  const data = await db.read(req.familyId);
   let entries = data.ledger;
 
   if (req.session.role === 'kid') {
@@ -417,9 +513,22 @@ app.get('/api/ledger', requireLogin, (req, res) => {
 
 // ---------- fallback ----------
 
-app.get('*', (req, res, next) => {
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.use((error, req, res, next) => {
+  console.error(JSON.stringify({
+    level: 'error',
+    method: req.method,
+    path: req.path,
+    message: error.message,
+    name: error.name
+  }));
+  if (res.headersSent) return next(error);
+  return res.status(500).json({ error: 'Unexpected server error' });
 });
 
 app.listen(PORT, () => {

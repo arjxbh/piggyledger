@@ -309,14 +309,16 @@ function openChangePasswordModal() {
 }
 
 async function openTokenModal() {
-  const tokenRes = await fetchWithToken('/api/access-token');
+  const tokenRes = await fetchWithToken('/api/access-token', { method: 'POST' });
   if (!tokenRes.ok) {
     alert('Access token not available');
     return;
   }
-  const { accessToken } = await tokenRes.json();
+  const { accessToken, expiresAt } = await tokenRes.json();
   const shareUrl = `${window.location.origin}/login.html?access_token=${encodeURIComponent(accessToken)}`;
   document.getElementById('accessTokenValue').value = shareUrl;
+  const label = document.querySelector('#tokenModal label');
+  if (label) label.textContent = `Scan this QR or copy the link. It expires ${new Date(expiresAt).toLocaleString()}.`;
   document.getElementById('qrcode').innerHTML = '';
   new QRCode(document.getElementById('qrcode'), {
     text: shareUrl,

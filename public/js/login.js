@@ -50,6 +50,10 @@ function handleNewAccessToken(token) {
   setLoginSubtitle('Access token received. Tap your name to sign in.');
 }
 
+function clearAccessToken() {
+  localStorage.removeItem('piggyledger_access_token');
+}
+
 async function fetchWithToken(url, options = {}) {
   options.headers = { ...(options.headers || {}), ...accessHeaders() };
   return fetch(url, options);
@@ -64,7 +68,8 @@ async function loadProfiles() {
     if (!res.ok) {
       grid.innerHTML = '';
       if (res.status === 401) {
-        setLoginSubtitle('Access token missing or invalid. Scan a valid access token QR.');
+        clearAccessToken();
+        setLoginSubtitle('Your access has expired or is missing. Request an email link or scan a new QR.');
       } else {
         setLoginSubtitle('Unable to load profiles. Please try again.');
       }
@@ -258,5 +263,25 @@ document.getElementById('backBtn').addEventListener('click', () => {
 document.getElementById('scanTokenBtn').addEventListener('click', () => startQrScan());
 document.getElementById('stopScanBtn').addEventListener('click', () => stopQrScan());
 document.getElementById('cancelScanBtn').addEventListener('click', () => stopQrScan());
+document.getElementById('emailAccessBtn').addEventListener('click', async () => {
+  const email = document.getElementById('accessEmail').value.trim();
+  const status = document.getElementById('emailAccessStatus');
+  if (!email) {
+    status.textContent = 'Enter your email address.';
+    return;
+  }
+  status.textContent = 'Sending...';
+  try {
+    const res = await fetch('/api/access/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const body = await res.json();
+    status.textContent = body.message || (res.ok ? 'Check your email.' : 'Unable to send access link.');
+  } catch (error) {
+    status.textContent = 'Unable to send access link. Please try again.';
+  }
+});
 
 init();

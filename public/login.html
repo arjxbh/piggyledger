@@ -16,6 +16,19 @@
     <div class="form-actions" style="margin-top:14px; text-align:center;">
       <button class="btn btn-ghost" id="scanTokenBtn">Scan access token QR</button>
     </div>
+    <div class="card" id="emailAccessCard" style="margin-top:18px;">
+      <h2>Email me an access link</h2>
+      <div class="muted">For parents whose saved access has expired or is missing.</div>
+      <div class="form-row">
+        <label for="accessEmail">Parent email</label>
+        <input type="email" id="accessEmail" autocomplete="email" placeholder="parent@example.com">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="emailAccessBtn">Send access link</button>
+        <a class="btn btn-ghost" href="/signup.html">Create a family</a>
+      </div>
+      <div class="muted" id="emailAccessStatus"></div>
+    </div>
 
     <div class="auth-panel hidden" id="authPanel">
       <div class="name" id="authName"></div>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create a family - Piggy Ledger</title>
+<link rel="icon" type="image/png" href="/images/piggy-ledger-logo.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-title"><img class="brand-logo" src="/images/piggy-ledger-logo.png" alt=""> Piggy Ledger</div>
+    <div class="login-sub">Create your family</div>
+    <div class="card">
+      <div class="form-row">
+        <label for="familyName">Family name</label>
+        <input id="familyName" autocomplete="organization" placeholder="The Smith family">
+      </div>
+      <div class="form-row">
+        <label for="parentName">Your name</label>
+        <input id="parentName" autocomplete="name" placeholder="Alex">
+      </div>
+      <div class="form-row">
+        <label for="email">Email</label>
+        <input type="email" id="email" autocomplete="email" placeholder="alex@example.com">
+      </div>
+      <div class="form-row">
+        <label for="password">Password</label>
+        <input type="password" id="password" minlength="10" autocomplete="new-password" placeholder="At least 10 characters">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="signupBtn">Create family</button>
+        <a class="btn btn-ghost" href="/login.html">Back to login</a>
+      </div>
+      <div class="error-msg" id="signupError"></div>
+      <div class="muted" id="signupStatus"></div>
+    </div>
+  </div>
+  <script src="/js/signup.js"></script>
+</body>
+</html>

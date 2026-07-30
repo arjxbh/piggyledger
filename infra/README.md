@@ -1,21 +1,21 @@
 # PiggyLedger AWS deployment
 
-This CDK stack deploys PiggyLedger to one Amazon Linux 2023 EC2 instance in
-`us-east-1` by default. The application is packaged from the repository and
-installed on first boot and updated in place by an SSM State Manager
-association on later deployments.
+The CDK stack runs the existing Express application on one small Amazon Linux
+2023 EC2 instance and stores application data in an on-demand DynamoDB table.
+The table uses AWS-managed encryption, TTL for expired access and verification
+tokens, and a `RETAIN` removal policy.
 
 ## Prerequisites
 
-- AWS CLI credentials configured for the target account
-- Node.js 20 or newer
-- AWS CDK CLI (`npm install -g aws-cdk`)
-- CDK bootstrapped in the target region: `cdk bootstrap aws://ACCOUNT/us-east-1`
-- An optional EC2 key pair if SSH access is desired; SSM is enabled by default
+- AWS CLI credentials for the target account
+- Node.js 24 LTS
+- AWS CDK bootstrapped in the target region
+- A verified Amazon SES identity for `piggyledger.net`
+- Amazon SES production access if mail must be sent to unverified recipients
 
-The deploying identity needs permissions to create the CDK bootstrap assets,
-VPC, EC2 instance, IAM role, security group, EBS volume, SSM association, and
-SSM parameters. It also needs `ec2:DescribeAvailabilityZones` for synthesis.
+The application sends from `no-reply@piggyledger.net`. Change
+`SES_FROM_EMAIL` and the matching IAM identity ARN in
+`lib/piggyledger-stack.ts` if another verified identity is used.
 
 ## Deploy
 
@@ -23,43 +23,44 @@ SSM parameters. It also needs `ec2:DescribeAvailabilityZones` for synthesis.
 cd infra
 npm install
 export CDK_DEFAULT_REGION=us-east-1
-export KEY_PAIR_NAME=your-existing-key-pair   # optional; omit for SSM-only access
+export KEY_PAIR_NAME=your-existing-key-pair  # optional
 npm run deploy
 ```
 
-The output includes the instance public IP and the application URL. The stack
-opens HTTP port 80 only to redirect requests to HTTPS and opens HTTPS port 443
-for Caddy, which obtains and renews Let's Encrypt certificates automatically
-for `piggyledger.net` and `www.piggyledger.net`. Node listens on port 3000
-behind the reverse proxy, and administration is available through AWS Systems
-Manager Session Manager.
+The stack keeps the current low-cost single-instance topology: no NAT gateway,
+one public subnet, one Elastic IP, a `t3.micro`, and DynamoDB on-demand billing.
+Caddy terminates HTTPS for `piggyledger.net`.
 
-Each deployment updates the application through an SSM association, preserves
-`data/db.json`, restores the environment from Parameter Store, and restarts the
-service. It does not replace the EC2 instance, so existing certificate and
-ledger data remain in place.
+On first boot, the instance generates only the Express session secret in SSM
+Parameter Store. Family access tokens are random, hashed before storage in
+DynamoDB, and never placed in CloudFormation outputs or Parameter Store.
 
-On first boot, the instance generates the application session secret and shared
-access token as standard `SecureString` parameters in AWS Systems Manager
-Parameter Store. Later deployments reuse those values and set `SESSION_SECRET`
-and `ACCESS_TOKEN` in the application's environment. Standard parameters have
-no storage charge. Retrieve the access token from
-`/piggyledger/PiggyLedgerStack/access-token` in Parameter Store when creating a
-login link; the token value is not included in CloudFormation outputs or boot
-logs.
+## Migrate the existing JSON family
 
-Retrieve the access token with the AWS CLI:
+Deploy the DynamoDB table first. Then run the migration once from a machine
+with DynamoDB access:
 
 ```bash
-aws ssm get-parameter \
-  --name /piggyledger/PiggyLedgerStack/access-token \
-  --with-decryption \
-  --query Parameter.Value \
-  --output text \
-  --region us-east-1
+export DYNAMODB_TABLE_NAME=table-name-from-cdk-output
+export MIGRATION_FAMILY_NAME="The Smith family"
+export MIGRATION_EMAIL=parent@example.com
+export APP_BASE_URL=https://piggyledger.net
+npm run migrate:ddb
 ```
 
-## Important limitations
+The command expects an empty table, creates the first family, imports the JSON
+users, chores, and ledger transactionally, and prints a 90-day login link. If
+any family already exists, it exits without changing the table. A migration
+requiring more than 100 transactional writes is also rejected without changing
+the table.
 
-The existing `data/db.json` is deployed as the initial data file and remains
-on the instance's EBS volume. The stack does not currently configure backups.
+## Email behavior
+
+- Signup verification links expire after 30 minutes.
+- QR access links expire after 10 minutes.
+- Emailed access links expire after 90 days.
+- DynamoDB TTL removes expired records asynchronously, while the application
+  rejects them immediately based on their stored expiration time.
+
+If `SES_FROM_EMAIL` is unset outside production, email content is written as a
+structured development log entry.
