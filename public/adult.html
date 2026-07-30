@@ -119,6 +119,10 @@
           <label id="newSecretLabel">4-digit PIN</label>
           <input type="text" id="newSecret" placeholder="1234" maxlength="20">
         </div>
+        <div class="form-row hidden" id="newEmailRow">
+          <label>Email</label>
+          <input type="email" id="newEmail" placeholder="adult@example.com">
+        </div>
         <div class="form-actions">
           <button class="btn btn-primary" id="addPersonBtn">Add person</button>
         </div>
@@ -173,6 +177,20 @@
       <div class="form-actions">
         <button class="btn btn-primary" id="resetSubmitBtn">Save</button>
         <button class="btn btn-ghost" id="resetCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="emailModal">
+    <div class="modal">
+      <h2 id="emailTitle">Change email</h2>
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" id="emailValue" placeholder="adult@example.com">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="emailSubmitBtn">Save</button>
+        <button class="btn btn-ghost" id="emailCancelBtn">Cancel</button>
       </div>
     </div>
   </div>

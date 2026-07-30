@@ -85,6 +85,10 @@ function publicUser(u) {
   return { id: u.id, name: u.name, role: u.role, color: u.color };
 }
 
+function managedUser(u) {
+  return { ...publicUser(u), ...(u.role === 'adult' ? { email: u.email } : {}) };
+}
+
 function balanceForKid(data, kidId) {
   return data.ledger
     .filter(l => l.kidId === kidId)
@@ -207,31 +211,69 @@ app.get('/api/me', async (req, res) => {
 
 app.get('/api/users', requireAdult, async (req, res) => {
   const data = await db.read(req.familyId);
-  res.json(data.users.map(publicUser));
+  res.json(data.users.map(managedUser));
 });
 
 app.post('/api/users', requireAdult, async (req, res) => {
   const { name, role, secret, color } = req.body;
+  const adultEmail = db.normalizeEmail(req.body.email);
   if (!name || !role || !secret) return res.status(400).json({ error: 'name, role, and secret are required' });
   if (!['adult', 'kid'].includes(role)) return res.status(400).json({ error: 'role must be adult or kid' });
   if (role === 'kid' && !/^\d{4}$/.test(String(secret))) {
     return res.status(400).json({ error: 'Kid PIN must be exactly 4 digits' });
   }
+  if (role === 'adult' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adultEmail)) {
+    return res.status(400).json({ error: 'A valid email is required for each adult' });
+  }
 
   const user = await db.mutate(req.familyId, d => {
+    if (role === 'adult' && d.users.some(u => u.role === 'adult' && db.normalizeEmail(u.email) === adultEmail)) {
+      return 'duplicate-email';
+    }
     const id = db.nextId(d);
     const u = {
       id,
       name,
       role,
+      ...(role === 'adult' ? { email: adultEmail } : {}),
       secretHash: bcrypt.hashSync(String(secret), 10),
       color: color || '#5B7FDE',
       createdAt: new Date().toISOString()
     };
     d.users.push(u);
     return u;
-  });
-  res.status(201).json(publicUser(user));
+  }, { syncAdultEmails: true });
+  if (user === 'duplicate-email') {
+    return res.status(409).json({ error: 'That email is already assigned to an adult in this family' });
+  }
+  res.status(201).json(managedUser(user));
+});
+
+app.put('/api/users/:id/email', requireAdult, async (req, res) => {
+  const id = Number(req.params.id);
+  const adultEmail = db.normalizeEmail(req.body.email);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adultEmail)) {
+    return res.status(400).json({ error: 'A valid email is required' });
+  }
+
+  const result = await db.mutate(req.familyId, d => {
+    const user = d.users.find(value => value.id === id);
+    if (!user) return 'not-found';
+    if (user.role !== 'adult') return 'not-adult';
+    if (d.users.some(value =>
+      value.id !== id &&
+      value.role === 'adult' &&
+      db.normalizeEmail(value.email) === adultEmail
+    )) return 'duplicate-email';
+    user.email = adultEmail;
+    return user;
+  }, { syncAdultEmails: true });
+  if (result === 'not-found') return res.status(404).json({ error: 'User not found' });
+  if (result === 'not-adult') return res.status(400).json({ error: 'Only adults have email addresses' });
+  if (result === 'duplicate-email') {
+    return res.status(409).json({ error: 'That email is already assigned to an adult in this family' });
+  }
+  res.json(managedUser(result));
 });
 
 app.put('/api/users/:id/secret', requireAdult, async (req, res) => {
@@ -256,7 +298,7 @@ app.delete('/api/users/:id', requireAdult, async (req, res) => {
   if (id === req.session.userId) return res.status(400).json({ error: "You can't delete your own account while logged in" });
   await db.mutate(req.familyId, d => {
     d.users = d.users.filter(u => u.id !== id);
-  });
+  }, { syncAdultEmails: true });
   res.json({ ok: true });
 });
 

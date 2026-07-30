@@ -43,6 +43,15 @@ function colorFor(name) {
 function initials(name) {
   return name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
 function kidName(id) {
   const k = allUsers.find(u => u.id === id);
   return k ? k.name : 'Unknown';
@@ -211,20 +220,34 @@ function renderPeople() {
   grid.innerHTML = allUsers.map(u => `
     <div class="kid-card" style="cursor:default;">
       <div class="avatar" style="background:${colorFor(u.name)}">${initials(u.name)}</div>
-      <div class="name" style="margin-top:8px;">${u.name}</div>
+      <div class="name" style="margin-top:8px;">${escapeHtml(u.name)}</div>
       <div class="muted" style="text-transform:uppercase; font-size:11.5px; margin-top:2px;">${u.role}</div>
+      ${u.role === 'adult' ? `<div class="muted" style="font-size:12px; margin-top:4px;">${escapeHtml(u.email)}</div>` : ''}
       <div class="form-actions" style="margin-top:12px;">
-        <button class="btn btn-ghost btn-sm" data-reset="${u.id}" data-role="${u.role}" data-name="${u.name}">Reset login</button>
+        <button class="btn btn-ghost btn-sm" data-reset="${u.id}">Reset login</button>
+        ${u.role === 'adult' ? `<button class="btn btn-ghost btn-sm" data-email="${u.id}">Change email</button>` : ''}
         ${u.id !== me.id ? `<button class="btn btn-ghost btn-sm" data-remove="${u.id}">Remove</button>` : ''}
       </div>
     </div>
   `).join('');
 
   grid.querySelectorAll('[data-reset]').forEach(btn => {
-    btn.addEventListener('click', () => openResetModal(Number(btn.dataset.reset), btn.dataset.role, btn.dataset.name));
+    btn.addEventListener('click', () => {
+      const user = allUsers.find(value => value.id === Number(btn.dataset.reset));
+      openResetModal(user.id, user.role, user.name);
+    });
   });
   grid.querySelectorAll('[data-remove]').forEach(btn => {
     btn.addEventListener('click', () => onRemoveUser(Number(btn.dataset.remove)));
+  });
+  grid.querySelectorAll('[data-email]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const user = allUsers.find(value => value.id === Number(btn.dataset.email));
+      document.getElementById('emailModal').dataset.user = user.id;
+      document.getElementById('emailTitle').textContent = `Change ${user.name}'s email`;
+      document.getElementById('emailValue').value = user.email || '';
+      document.getElementById('emailModal').classList.remove('hidden');
+    });
   });
 }
 
@@ -414,7 +437,24 @@ function wireUp() {
     document.getElementById('resetModal').classList.add('hidden');
   });
 
-  // role toggle affects the secret label/placeholder on the add-person form
+  document.getElementById('emailCancelBtn').addEventListener('click', () => {
+    document.getElementById('emailModal').classList.add('hidden');
+  });
+  document.getElementById('emailSubmitBtn').addEventListener('click', async () => {
+    const userId = Number(document.getElementById('emailModal').dataset.user);
+    const email = document.getElementById('emailValue').value.trim();
+    if (!email) { alert('Please enter an email address.'); return; }
+    const res = await fetchWithToken(`/api/users/${userId}/email`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (!res.ok) { const { error } = await res.json(); alert(error); return; }
+    document.getElementById('emailModal').classList.add('hidden');
+    await loadUsers();
+  });
+
+  // role toggle affects the login fields on the add-person form
   document.getElementById('showTokenBtn').addEventListener('click', () => {
     openTokenModal();
   });
@@ -427,21 +467,25 @@ function wireUp() {
     const isKid = e.target.value === 'kid';
     document.getElementById('newSecretLabel').textContent = isKid ? '4-digit PIN' : 'Password';
     document.getElementById('newSecret').placeholder = isKid ? '1234' : 'choose a password';
+    document.getElementById('newEmailRow').classList.toggle('hidden', isKid);
   });
 
   document.getElementById('addPersonBtn').addEventListener('click', async () => {
     const name = document.getElementById('newName').value.trim();
     const role = document.getElementById('newRole').value;
     const secret = document.getElementById('newSecret').value.trim();
+    const email = document.getElementById('newEmail').value.trim();
     if (!name || !secret) { alert('Please enter a name and a PIN/password.'); return; }
+    if (role === 'adult' && !email) { alert('Please enter an email address.'); return; }
     const res = await fetchWithToken('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, role, secret })
+      body: JSON.stringify({ name, role, secret, email })
     });
     if (!res.ok) { const { error } = await res.json(); alert(error); return; }
     document.getElementById('newName').value = '';
     document.getElementById('newSecret').value = '';
+    document.getElementById('newEmail').value = '';
     await loadUsers();
     await loadBalances();
     await loadChores();

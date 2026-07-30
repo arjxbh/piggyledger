@@ -3,6 +3,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3assets from 'aws-cdk-lib/aws-s3-assets';
+import * as ses from 'aws-cdk-lib/aws-ses';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
@@ -65,15 +66,17 @@ export class PiggyLedgerStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
     table.grantReadWriteData(role);
+    const emailIdentity = new ses.CfnEmailIdentity(this, 'EmailIdentity', {
+      emailIdentity: 'piggyledger.net',
+    });
     role.addToPolicy(new iam.PolicyStatement({
       actions: ['ses:SendEmail'],
-      resources: [
-        this.formatArn({
-          service: 'ses',
-          resource: 'identity',
-          resourceName: 'piggyledger.net',
-        }),
-      ],
+      resources: ['*'],
+      conditions: {
+        StringEquals: {
+          'ses:FromAddress': 'no-reply@piggyledger.net',
+        },
+      },
     }));
 
     const parameterPrefix = `/piggyledger/${this.stackName}`;
@@ -97,10 +100,10 @@ export class PiggyLedgerStack extends cdk.Stack {
     userData.addCommands(
       'yum update -y',
       'yum install -y git aws-cli openssl unzip dnf-plugins-core',
-      'dnf copr enable -y @caddy/caddy',
+      'dnf copr enable -y @caddy/caddy epel-9-x86_64',
       'yum install -y caddy',
       'curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -',
-      'yum install -y nodejs npm',
+      'yum install -y nodejs --disablerepo=amazonlinux --disablerepo=kernel-livepatch',
       'mkdir -p /opt/piggyledger',
       `aws s3 cp "s3://${appAsset.s3BucketName}/${appAsset.s3ObjectKey}" /tmp/piggyledger.tgz`,
       'unzip -q /tmp/piggyledger.tgz -d /opt/piggyledger',
@@ -201,7 +204,7 @@ export class PiggyLedgerStack extends cdk.Stack {
           `aws s3 cp "s3://${appAsset.s3BucketName}/${appAsset.s3ObjectKey}" /tmp/piggyledger-deploy/app.zip`,
           'unzip -oq /tmp/piggyledger-deploy/app.zip -d /opt/piggyledger',
           'if test -f /tmp/piggyledger-deploy/db.json; then mkdir -p /opt/piggyledger/data && cp /tmp/piggyledger-deploy/db.json /opt/piggyledger/data/db.json; fi',
-          'if ! node --version | grep -q "^v24\\."; then curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && yum install -y nodejs; fi',
+          'if ! node --version | grep -q "^v24\\."; then yum remove -y nodejs nodejs-npm nodejs-libs nodejs-docs nodejs-full-i18n || true; curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && yum install -y nodejs --disablerepo=amazonlinux --disablerepo=kernel-livepatch; fi',
           'cd /opt/piggyledger && npm install --omit=dev',
           'set +x',
           `SESSION_SECRET_PARAMETER="${sessionSecretParameter}"`,
@@ -230,6 +233,19 @@ export class PiggyLedgerStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'DataTableName', {
       value: table.tableName,
       description: 'DynamoDB table used by PiggyLedger',
+    });
+    [
+      ['SesDkimName1', emailIdentity.attrDkimDnsTokenName1],
+      ['SesDkimValue1', emailIdentity.attrDkimDnsTokenValue1],
+      ['SesDkimName2', emailIdentity.attrDkimDnsTokenName2],
+      ['SesDkimValue2', emailIdentity.attrDkimDnsTokenValue2],
+      ['SesDkimName3', emailIdentity.attrDkimDnsTokenName3],
+      ['SesDkimValue3', emailIdentity.attrDkimDnsTokenValue3],
+    ].forEach(([id, value]) => {
+      new cdk.CfnOutput(this, id, {
+        value,
+        description: 'Add this SES DKIM CNAME field to Squarespace DNS',
+      });
     });
   }
 }
