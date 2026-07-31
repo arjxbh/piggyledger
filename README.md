@@ -9,7 +9,7 @@ Every balance change is an immutable ledger entry.
 - Express and Node.js 24
 - DynamoDB with one tenant partition per family
 - Opaque family access tokens stored only as SHA-256 hashes
-- Amazon SES for signup verification and parent access links
+- Mailjet for signup verification and parent access links
 - AWS CDK infrastructure in `infra/`
 
 Access lifetimes are deliberately different:
@@ -34,7 +34,7 @@ export APP_BASE_URL=http://localhost:3000
 npm start
 ```
 
-Leave `SES_FROM_EMAIL` unset in development to log email links instead of
+Leave `MAILJET_FROM_EMAIL` and `MAILJET_SECRET_ID` unset in development to log email links instead of
 sending them. AWS credentials must allow reads and writes on the development
 table.
 

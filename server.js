@@ -18,6 +18,7 @@ const publicApiPaths = new Set([
   '/api/signup',
   '/api/signup/verify',
   '/api/access/request',
+  '/api/access-token/status',
   '/api/health'
 ]);
 const requestWindows = new Map();
@@ -66,15 +67,14 @@ app.use(session({
   }
 }));
 app.get('/', (req, res) => {
+  const accessToken = String(req.query.access_token || '').trim();
+  if (accessToken) {
+    return res.redirect(`/login.html?access_token=${encodeURIComponent(accessToken)}`);
+  }
   if (req.session.userId) {
     return res.redirect(req.session.role === 'adult' ? '/adult.html' : '/kid.html');
   }
-
-  const accessToken = String(req.query.access_token || '').trim();
-  const loginUrl = accessToken
-    ? `/login.html?access_token=${encodeURIComponent(accessToken)}`
-    : '/login.html';
-  res.redirect(loginUrl);
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(requireAccessToken);
@@ -98,6 +98,19 @@ function balanceForKid(data, kidId) {
 // ---------- auth routes ----------
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+app.get('/api/access-token/status', async (req, res) => {
+  const token = String(req.headers['x-access-token'] || '').trim();
+  const access = await db.resolveAccessToken(token);
+  if (!access) {
+    return res.status(401).json({ error: 'Access token missing or expired', code: 'ACCESS_TOKEN_INVALID' });
+  }
+  res.json({
+    familyId: access.familyId,
+    kind: access.kind,
+    expiresAt: new Date(access.expiresAt * 1000).toISOString()
+  });
+});
 
 app.post('/api/signup', async (req, res) => {
   if (!rateLimit(`signup:${req.ip}`, 5, 60 * 60 * 1000)) {

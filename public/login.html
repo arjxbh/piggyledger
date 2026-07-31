@@ -10,25 +10,34 @@
 <body>
   <div class="login-wrap">
     <div class="login-title"><img class="brand-logo" src="/images/piggy-ledger-logo.png" alt=""> Piggy Ledger</div>
-    <div class="login-sub" id="subtitle">Tap your name to sign in</div>
+    <div class="login-sub" id="subtitle">Choose your name to sign in</div>
 
     <div class="profile-grid" id="profileGrid"></div>
-    <div class="form-actions" style="margin-top:14px; text-align:center;">
-      <button class="btn btn-ghost" id="scanTokenBtn">Scan access token QR</button>
-    </div>
-    <div class="card" id="emailAccessCard" style="margin-top:18px;">
-      <h2>Email me an access link</h2>
-      <div class="muted">For parents whose saved access has expired or is missing.</div>
-      <div class="form-row">
-        <label for="accessEmail">Parent email</label>
-        <input type="email" id="accessEmail" autocomplete="email" placeholder="parent@example.com">
+    <div class="login-entry hidden" id="loginEntry">
+      <section class="kid-login-card">
+        <h1>Ask your parent for a QR code.</h1>
+        <p>When they show it to you, tap the button and point this device at the code.</p>
+        <button class="btn btn-primary kid-scan-button" id="scanTokenBtn">Scan my QR code</button>
+      </section>
+
+      <section class="adult-login-card" id="emailAccessCard">
+        <h2>Are you an adult?</h2>
+        <p>Enter your email and we’ll send you a sign-in link.</p>
+        <div class="form-row">
+          <label for="accessEmail">Your email</label>
+          <input type="email" id="accessEmail" autocomplete="email" placeholder="you@example.com">
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" id="emailAccessBtn">Email me a sign-in link</button>
+        </div>
+        <div class="muted" id="emailAccessStatus" aria-live="polite"></div>
+      </section>
+
+      <div class="signup-prompt">
+        No family account yet? <a href="/signup.html">Sign up here</a>
       </div>
-      <div class="form-actions">
-        <button class="btn btn-primary" id="emailAccessBtn">Send access link</button>
-        <a class="btn btn-ghost" href="/signup.html">Create a family</a>
-      </div>
-      <div class="muted" id="emailAccessStatus"></div>
     </div>
+    <button class="switch-family-link hidden" id="switchFamilyBtn">Switch to a different family</button>
 
     <div class="auth-panel hidden" id="authPanel">
       <div class="name" id="authName"></div>
@@ -51,7 +60,7 @@
 
   <div class="modal-backdrop hidden" id="scanModal">
     <div class="modal">
-      <h2>Scan access token QR</h2>
+      <h2>Scan your family’s QR code</h2>
       <video id="qrVideo" width="320" height="240" autoplay muted playsinline style="width:100%; border-radius:12px; background:#000;"></video>
       <div class="form-actions">
         <button class="btn btn-primary" id="stopScanBtn">Stop scan</button>

@@ -3,7 +3,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3assets from 'aws-cdk-lib/aws-s3-assets';
-import * as ses from 'aws-cdk-lib/aws-ses';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
@@ -66,18 +66,12 @@ export class PiggyLedgerStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
     table.grantReadWriteData(role);
-    const emailIdentity = new ses.CfnEmailIdentity(this, 'EmailIdentity', {
-      emailIdentity: 'piggyledger.net',
-    });
-    role.addToPolicy(new iam.PolicyStatement({
-      actions: ['ses:SendEmail'],
-      resources: ['*'],
-      conditions: {
-        StringEquals: {
-          'ses:FromAddress': 'no-reply@piggyledger.net',
-        },
-      },
-    }));
+    const mailjetSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'MailjetCredentials',
+      'piggyledger/mailjet',
+    );
+    mailjetSecret.grantRead(role);
 
     const parameterPrefix = `/piggyledger/${this.stackName}`;
     const sessionSecretParameter = `${parameterPrefix}/session-secret`;
@@ -116,7 +110,8 @@ export class PiggyLedgerStack extends cdk.Stack {
       'NODE_ENV=production',
       'SESSION_SECRET=$(aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" --with-decryption --query Parameter.Value --output text)',
       `DYNAMODB_TABLE_NAME=${table.tableName}`,
-      'SES_FROM_EMAIL=no-reply@piggyledger.net',
+      'MAILJET_FROM_EMAIL=no-reply@piggyledger.net',
+      `MAILJET_SECRET_ID=${mailjetSecret.secretName}`,
       'APP_BASE_URL=https://piggyledger.net',
       'PORT=3000',
       'EOF',
@@ -142,7 +137,10 @@ export class PiggyLedgerStack extends cdk.Stack {
       'systemctl daemon-reload',
       'systemctl enable --now piggyledger',
       "cat > /etc/caddy/Caddyfile <<'EOF'",
-      'piggyledger.net, www.piggyledger.net {',
+      'www.piggyledger.net {',
+      '    redir https://piggyledger.net{uri} permanent',
+      '}',
+      'piggyledger.net {',
       '    reverse_proxy 127.0.0.1:3000',
       '    header Strict-Transport-Security "max-age=31536000; includeSubDomains"',
       '}',
@@ -209,7 +207,18 @@ export class PiggyLedgerStack extends cdk.Stack {
           'set +x',
           `SESSION_SECRET_PARAMETER="${sessionSecretParameter}"`,
           'if ! aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" >/dev/null 2>&1; then aws ssm put-parameter --name "$SESSION_SECRET_PARAMETER" --type SecureString --tier Standard --value "$(openssl rand -hex 32)"; fi',
-          `cat > /opt/piggyledger/.env <<EOF\nNODE_ENV=production\nSESSION_SECRET=$(aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" --with-decryption --query Parameter.Value --output text)\nDYNAMODB_TABLE_NAME=${table.tableName}\nSES_FROM_EMAIL=no-reply@piggyledger.net\nAPP_BASE_URL=https://piggyledger.net\nPORT=3000\nEOF`,
+          `cat > /opt/piggyledger/.env <<EOF\nNODE_ENV=production\nSESSION_SECRET=$(aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" --with-decryption --query Parameter.Value --output text)\nDYNAMODB_TABLE_NAME=${table.tableName}\nMAILJET_FROM_EMAIL=no-reply@piggyledger.net\nMAILJET_SECRET_ID=${mailjetSecret.secretName}\nAPP_BASE_URL=https://piggyledger.net\nPORT=3000\nEOF`,
+          `cat > /etc/caddy/Caddyfile <<'EOF'
+www.piggyledger.net {
+    redir https://piggyledger.net{uri} permanent
+}
+piggyledger.net {
+    reverse_proxy 127.0.0.1:3000
+    header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+EOF`,
+          'caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile',
+          'systemctl reload caddy',
           'chown -R ec2-user:ec2-user /opt/piggyledger',
           'chmod 600 /opt/piggyledger/.env',
           'systemctl restart piggyledger',
@@ -233,19 +242,6 @@ export class PiggyLedgerStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'DataTableName', {
       value: table.tableName,
       description: 'DynamoDB table used by PiggyLedger',
-    });
-    [
-      ['SesDkimName1', emailIdentity.attrDkimDnsTokenName1],
-      ['SesDkimValue1', emailIdentity.attrDkimDnsTokenValue1],
-      ['SesDkimName2', emailIdentity.attrDkimDnsTokenName2],
-      ['SesDkimValue2', emailIdentity.attrDkimDnsTokenValue2],
-      ['SesDkimName3', emailIdentity.attrDkimDnsTokenName3],
-      ['SesDkimValue3', emailIdentity.attrDkimDnsTokenValue3],
-    ].forEach(([id, value]) => {
-      new cdk.CfnOutput(this, id, {
-        value,
-        description: 'Add this SES DKIM CNAME field to Squarespace DNS',
-      });
     });
   }
 }

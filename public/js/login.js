@@ -13,12 +13,6 @@ let qrStream = null;
 let qrScanning = false;
 
 function getAccessToken() {
-  const urlToken = new URLSearchParams(window.location.search).get('access_token');
-  if (urlToken) {
-    localStorage.setItem('piggyledger_access_token', urlToken);
-    history.replaceState(null, '', window.location.pathname);
-    return urlToken;
-  }
   return localStorage.getItem('piggyledger_access_token');
 }
 
@@ -32,12 +26,18 @@ function setLoginSubtitle(text) {
   if (subtitle) subtitle.textContent = text;
 }
 
+function setAccessControls(hasAccess) {
+  document.getElementById('loginEntry').classList.toggle('hidden', hasAccess);
+  document.getElementById('switchFamilyBtn').classList.toggle('hidden', !hasAccess);
+}
+
 function updateAccessTokenStatus() {
   const token = getAccessToken();
+  setAccessControls(Boolean(token));
   if (token) {
-    setLoginSubtitle('Access token loaded. Tap your name to sign in.');
+    setLoginSubtitle('Choose your name to sign in.');
   } else {
-    setLoginSubtitle('Access token required. Scan a QR or open a login link with access_token.');
+    setLoginSubtitle('Sign in to your family.');
   }
 }
 
@@ -45,13 +45,49 @@ function parseAccessTokenFromUrlSearch(search) {
   return new URLSearchParams(search).get('access_token');
 }
 
-function handleNewAccessToken(token) {
-  localStorage.setItem('piggyledger_access_token', token);
-  setLoginSubtitle('Access token received. Tap your name to sign in.');
+async function accessTokenStatus(token) {
+  if (!token) return null;
+  try {
+    const response = await fetch('/api/access-token/status', {
+      headers: { 'X-Access-Token': token }
+    });
+    return response.ok ? response.json() : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function handleNewAccessToken(token) {
+  const currentToken = getAccessToken();
+  const [incoming, current] = await Promise.all([
+    accessTokenStatus(token),
+    accessTokenStatus(currentToken)
+  ]);
+  if (!incoming) {
+    setAccessControls(Boolean(current));
+    setLoginSubtitle(current ? 'Choose your name to sign in.' : 'That QR code or link has expired. Ask your parent for a new one.');
+    return false;
+  }
+
+  const keepCurrent = current &&
+    current.familyId === incoming.familyId &&
+    Date.parse(current.expiresAt) >= Date.parse(incoming.expiresAt);
+  if (!keepCurrent) {
+    localStorage.setItem('piggyledger_access_token', token);
+  }
+  setAccessControls(true);
+  await fetchWithToken('/api/logout', { method: 'POST' });
+  setLoginSubtitle(
+    keepCurrent
+      ? 'You’re ready. Choose your name to sign in.'
+      : 'You’re ready. Choose your name to sign in.'
+  );
+  return true;
 }
 
 function clearAccessToken() {
   localStorage.removeItem('piggyledger_access_token');
+  setAccessControls(false);
 }
 
 async function fetchWithToken(url, options = {}) {
@@ -69,7 +105,7 @@ async function loadProfiles() {
       grid.innerHTML = '';
       if (res.status === 401) {
         clearAccessToken();
-        setLoginSubtitle('Your access has expired or is missing. Request an email link or scan a new QR.');
+        setLoginSubtitle('Ask your parent for a new QR code, or use the adult sign-in below.');
       } else {
         setLoginSubtitle('Unable to load profiles. Please try again.');
       }
@@ -77,7 +113,7 @@ async function loadProfiles() {
     }
 
     const users = await res.json();
-    setLoginSubtitle('Access token loaded. Tap your name to sign in.');
+    setLoginSubtitle('Choose your name to sign in.');
 
     if (users.length === 0) {
       grid.innerHTML = `<div class="empty">No profiles yet.</div>`;
@@ -106,10 +142,11 @@ async function loadProfiles() {
 async function init() {
   const urlToken = parseAccessTokenFromUrlSearch(window.location.search);
   if (urlToken) {
-    handleNewAccessToken(urlToken);
     history.replaceState(null, '', window.location.pathname);
+    await handleNewAccessToken(urlToken);
+  } else {
+    updateAccessTokenStatus();
   }
-  updateAccessTokenStatus();
 
   // If already logged in, go straight to the right dashboard
   try {
@@ -204,7 +241,7 @@ function startQrScan() {
       scanFrame();
     })
     .catch(() => {
-      alert('Unable to access the camera. Please use a login link with access_token instead.');
+      alert('Unable to use the camera. Ask your parent for help, or use the adult sign-in option.');
       stopQrScan();
     });
 
@@ -221,9 +258,10 @@ function startQrScan() {
           const url = new URL(code.data);
           const accessToken = url.searchParams.get('access_token');
           if (accessToken) {
-            handleNewAccessToken(accessToken);
             stopQrScan();
-            loadProfiles();
+            handleNewAccessToken(accessToken).then(accepted => {
+              if (accepted) loadProfiles();
+            });
             return;
           }
         } catch (err) {
@@ -267,20 +305,38 @@ document.getElementById('emailAccessBtn').addEventListener('click', async () => 
   const email = document.getElementById('accessEmail').value.trim();
   const status = document.getElementById('emailAccessStatus');
   if (!email) {
-    status.textContent = 'Enter your email address.';
+    status.textContent = 'Enter the email address associated with your family.';
     return;
   }
-  status.textContent = 'Sending...';
+
+  const button = document.getElementById('emailAccessBtn');
+  button.disabled = true;
+  status.textContent = 'Sending your secure link...';
   try {
-    const res = await fetch('/api/access/request', {
+    const response = await fetch('/api/access/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
     });
-    const body = await res.json();
-    status.textContent = body.message || (res.ok ? 'Check your email.' : 'Unable to send access link.');
+    const body = await response.json();
+    status.textContent = body.message || (
+      response.ok ? 'Check your email for your access link.' : 'Unable to send an access link.'
+    );
   } catch (error) {
-    status.textContent = 'Unable to send access link. Please try again.';
+    status.textContent = 'Unable to send an access link. Please try again.';
+  } finally {
+    button.disabled = false;
+  }
+});
+document.getElementById('accessEmail').addEventListener('keydown', event => {
+  if (event.key === 'Enter') document.getElementById('emailAccessBtn').click();
+});
+document.getElementById('switchFamilyBtn').addEventListener('click', async () => {
+  clearAccessToken();
+  try {
+    await fetch('/api/logout', { method: 'POST' });
+  } finally {
+    location.href = '/';
   }
 });
 

@@ -12,7 +12,6 @@
     <div class="brand"><img class="brand-logo" src="/images/piggy-ledger-logo.png" alt=""> Piggy Ledger</div>
     <div class="who">
       <span id="whoName"></span>
-      <button class="btn btn-ghost" id="showTokenBtn">Access token</button>
       <button class="btn btn-ghost" id="changePasswordBtn">Change password</button>
       <button class="logout" id="logoutBtn">Log out</button>
     </div>
@@ -21,6 +20,14 @@
   <main>
     <h1>Family dashboard</h1>
     <div class="muted" style="margin-bottom:20px;">Manage chores, balances, and the audit trail</div>
+
+    <div class="connect-child-card">
+      <div>
+        <h2>Set up a child’s device</h2>
+        <p>Show a QR code for your child to scan on the Piggy Ledger login page.</p>
+      </div>
+      <button class="btn btn-primary" id="showTokenBtn">Show child sign-in QR code</button>
+    </div>
 
     <div class="tabs">
       <button class="tab active" data-tab="chores">Chores</button>
@@ -197,10 +204,10 @@
 
   <div class="modal-backdrop hidden" id="tokenModal">
     <div class="modal">
-      <h2>Access token</h2>
+      <h2>Connect a child’s device</h2>
       <div id="qrcode"></div>
       <div class="form-row">
-        <label>Scan this QR from the login page or copy the link</label>
+        <label>On your child’s device, open Piggy Ledger and scan this QR code. You can also copy the link.</label>
         <textarea id="accessTokenValue" readonly rows="3" style="width:100%; font-family:monospace;"></textarea>
       </div>
       <div class="form-actions">

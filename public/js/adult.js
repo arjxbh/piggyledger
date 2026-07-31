@@ -3,12 +3,6 @@ let allUsers = [];
 let allChores = [];
 
 function getAccessToken() {
-  const urlToken = new URLSearchParams(window.location.search).get('access_token');
-  if (urlToken) {
-    localStorage.setItem('piggyledger_access_token', urlToken);
-    history.replaceState(null, '', window.location.pathname);
-    return urlToken;
-  }
   return localStorage.getItem('piggyledger_access_token');
 }
 
@@ -334,14 +328,14 @@ function openChangePasswordModal() {
 async function openTokenModal() {
   const tokenRes = await fetchWithToken('/api/access-token', { method: 'POST' });
   if (!tokenRes.ok) {
-    alert('Access token not available');
+    alert('Unable to create a child sign-in QR code. Please try again.');
     return;
   }
   const { accessToken, expiresAt } = await tokenRes.json();
   const shareUrl = `${window.location.origin}/login.html?access_token=${encodeURIComponent(accessToken)}`;
   document.getElementById('accessTokenValue').value = shareUrl;
   const label = document.querySelector('#tokenModal label');
-  if (label) label.textContent = `Scan this QR or copy the link. It expires ${new Date(expiresAt).toLocaleString()}.`;
+  if (label) label.textContent = `On your child’s device, scan this QR code from the Piggy Ledger login page. It expires ${new Date(expiresAt).toLocaleString()}.`;
   document.getElementById('qrcode').innerHTML = '';
   new QRCode(document.getElementById('qrcode'), {
     text: shareUrl,

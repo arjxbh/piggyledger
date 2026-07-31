@@ -10,12 +10,14 @@ tokens, and a `RETAIN` removal policy.
 - AWS CLI credentials for the target account
 - Node.js 24 LTS
 - AWS CDK bootstrapped in the target region
-- A verified Amazon SES identity for `piggyledger.net`
-- Amazon SES production access if mail must be sent to unverified recipients
+- An active Mailjet account with `piggyledger.net` validated as a sending domain
+- Mailjet SPF and DKIM records configured for `piggyledger.net`
+- An AWS Secrets Manager secret named `piggyledger/mailjet`
 
-The application sends from `no-reply@piggyledger.net`. Change
-`SES_FROM_EMAIL` and the matching IAM identity ARN in
-`lib/piggyledger-stack.ts` if another verified identity is used.
+Create the `piggyledger/mailjet` secret in the AWS Console using the JSON key/value
+secret type. It must contain `apiKey` and `secretKey` fields populated from
+Mailjet. Do not store either value in source control or pass the secret key as a
+CDK context value. The application sends from `no-reply@piggyledger.net`.
 
 ## Deploy
 
@@ -31,9 +33,10 @@ The stack keeps the current low-cost single-instance topology: no NAT gateway,
 one public subnet, one Elastic IP, a `t3.micro`, and DynamoDB on-demand billing.
 Caddy terminates HTTPS for `piggyledger.net`.
 
-On first boot, the instance generates only the Express session secret in SSM
-Parameter Store. Family access tokens are random, hashed before storage in
-DynamoDB, and never placed in CloudFormation outputs or Parameter Store.
+On first boot, the instance generates the Express session secret in SSM
+Parameter Store. The instance role can read only the named Mailjet secret.
+Family access tokens are random, hashed before storage in DynamoDB, and never
+placed in CloudFormation outputs, Secrets Manager, or Parameter Store.
 
 ## Migrate the existing JSON family
 
@@ -62,5 +65,5 @@ the table.
 - DynamoDB TTL removes expired records asynchronously, while the application
   rejects them immediately based on their stored expiration time.
 
-If `SES_FROM_EMAIL` is unset outside production, email content is written as a
-structured development log entry.
+If `MAILJET_FROM_EMAIL` or `MAILJET_SECRET_ID` is unset outside production,
+email content is written as a structured development log entry.
