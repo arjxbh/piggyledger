@@ -334,8 +334,8 @@ async function openTokenModal() {
   const { accessToken, expiresAt } = await tokenRes.json();
   const shareUrl = `${window.location.origin}/login.html?access_token=${encodeURIComponent(accessToken)}`;
   document.getElementById('accessTokenValue').value = shareUrl;
-  const label = document.querySelector('#tokenModal label');
-  if (label) label.textContent = `On your child’s device, scan this QR code from the Piggy Ledger login page. It expires ${new Date(expiresAt).toLocaleString()}.`;
+  document.getElementById('qrExpiry').textContent = `This code works until ${new Date(expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
+  document.getElementById('copyChildLinkBtn').textContent = 'Copy link';
   document.getElementById('qrcode').innerHTML = '';
   new QRCode(document.getElementById('qrcode'), {
     text: shareUrl,
@@ -401,6 +401,16 @@ function wireUp() {
   });
   document.getElementById('closeTokenBtn').addEventListener('click', () => {
     document.getElementById('tokenModal').classList.add('hidden');
+  });
+  document.getElementById('copyChildLinkBtn').addEventListener('click', async () => {
+    const button = document.getElementById('copyChildLinkBtn');
+    try {
+      await navigator.clipboard.writeText(document.getElementById('accessTokenValue').value);
+      button.textContent = 'Link copied';
+    } catch (error) {
+      document.getElementById('accessTokenValue').select();
+      button.textContent = 'Select and copy the link';
+    }
   });
 
   // pick kid modal (for unassigned chore completion)

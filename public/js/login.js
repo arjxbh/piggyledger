@@ -37,7 +37,7 @@ function updateAccessTokenStatus() {
   if (token) {
     setLoginSubtitle('Choose your name to sign in.');
   } else {
-    setLoginSubtitle('Sign in to your family.');
+    setLoginSubtitle('Ask a parent for your QR code.');
   }
 }
 
@@ -105,7 +105,7 @@ async function loadProfiles() {
       grid.innerHTML = '';
       if (res.status === 401) {
         clearAccessToken();
-        setLoginSubtitle('Ask your parent for a new QR code, or use the adult sign-in below.');
+        setLoginSubtitle('Ask a parent for a new QR code. Adults can sign in below.');
       } else {
         setLoginSubtitle('Unable to load profiles. Please try again.');
       }
@@ -241,7 +241,7 @@ function startQrScan() {
       scanFrame();
     })
     .catch(() => {
-      alert('Unable to use the camera. Ask your parent for help, or use the adult sign-in option.');
+      alert('The camera did not work. Ask a parent for help.');
       stopQrScan();
     });
 
@@ -305,13 +305,13 @@ document.getElementById('emailAccessBtn').addEventListener('click', async () => 
   const email = document.getElementById('accessEmail').value.trim();
   const status = document.getElementById('emailAccessStatus');
   if (!email) {
-    status.textContent = 'Enter the email address associated with your family.';
+    status.textContent = 'Type your email.';
     return;
   }
 
   const button = document.getElementById('emailAccessBtn');
   button.disabled = true;
-  status.textContent = 'Sending your secure link...';
+  status.textContent = 'Sending your sign-in link...';
   try {
     const response = await fetch('/api/access/request', {
       method: 'POST',
@@ -319,11 +319,11 @@ document.getElementById('emailAccessBtn').addEventListener('click', async () => 
       body: JSON.stringify({ email })
     });
     const body = await response.json();
-    status.textContent = body.message || (
-      response.ok ? 'Check your email for your access link.' : 'Unable to send an access link.'
-    );
+    status.textContent = response.ok
+      ? 'Check your email for your sign-in link.'
+      : (body.error || 'We could not send the link. Try again.');
   } catch (error) {
-    status.textContent = 'Unable to send an access link. Please try again.';
+    status.textContent = 'We could not send the link. Try again.';
   } finally {
     button.disabled = false;
   }

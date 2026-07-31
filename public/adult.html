@@ -22,11 +22,16 @@
     <div class="muted" style="margin-bottom:20px;">Manage chores, balances, and the audit trail</div>
 
     <div class="connect-child-card">
-      <div>
-        <h2>Set up a child’s device</h2>
-        <p>Show a QR code for your child to scan on the Piggy Ledger login page.</p>
+      <div class="connect-child-copy">
+        <div class="connect-child-label">Child sign-in</div>
+        <h2>Give your child a QR code</h2>
+        <ol>
+          <li>Open Piggy Ledger on your child’s device.</li>
+          <li>Tap <strong>Scan QR code</strong>.</li>
+          <li>Show the code from this page.</li>
+        </ol>
       </div>
-      <button class="btn btn-primary" id="showTokenBtn">Show child sign-in QR code</button>
+      <button class="btn btn-primary connect-child-button" id="showTokenBtn">Show QR code</button>
     </div>
 
     <div class="tabs">
@@ -203,15 +208,18 @@
   </div>
 
   <div class="modal-backdrop hidden" id="tokenModal">
-    <div class="modal">
-      <h2>Connect a child’s device</h2>
+    <div class="modal qr-modal">
+      <h2>Child sign-in QR code</h2>
+      <p class="qr-help">On your child’s device, tap <strong>Scan QR code</strong>. Then point its camera at this code.</p>
       <div id="qrcode"></div>
       <div class="form-row">
-        <label>On your child’s device, open Piggy Ledger and scan this QR code. You can also copy the link.</label>
+        <label for="accessTokenValue">Or send this link to your child’s device</label>
         <textarea id="accessTokenValue" readonly rows="3" style="width:100%; font-family:monospace;"></textarea>
       </div>
+      <div class="muted qr-expiry" id="qrExpiry"></div>
       <div class="form-actions">
-        <button class="btn btn-primary" id="closeTokenBtn">Close</button>
+        <button class="btn btn-primary" id="copyChildLinkBtn">Copy link</button>
+        <button class="btn btn-ghost" id="closeTokenBtn">Close</button>
       </div>
     </div>
   </div>

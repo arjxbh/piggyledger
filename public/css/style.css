@@ -421,6 +421,16 @@ td.amt.neg { color: var(--coral); }
   box-shadow: 0 14px 35px rgba(35,35,56,0.1);
 }
 .kid-login-card h1 { font-size: 29px; line-height: 1.15; }
+.kid-login-label,
+.connect-child-label {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.kid-login-label { color: var(--gold-dark); }
 .kid-login-card p, .adult-login-card p {
   color: var(--ink-soft);
   line-height: 1.55;
@@ -452,16 +462,31 @@ td.amt.neg { color: var(--coral); }
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 26px;
-  padding: 20px 22px;
+  padding: 24px 26px;
   color: #fff;
   background: linear-gradient(115deg, var(--sky), #315f9f);
   border-radius: var(--radius);
   box-shadow: 0 8px 22px rgba(62,127,191,0.22);
 }
-.connect-child-card h2 { font-size: 23px; }
-.connect-child-card p { margin: 5px 0 0; color: #e9f3ff; font-size: 14px; }
+.connect-child-copy { max-width: 620px; }
+.connect-child-label { color: #fff; opacity: 0.88; }
+.connect-child-card h2 { font-size: 25px; }
+.connect-child-card ol {
+  margin: 12px 0 0;
+  padding-left: 22px;
+  color: #f4f8ff;
+  font-size: 15px;
+  line-height: 1.65;
+}
 .connect-child-card .btn { flex-shrink: 0; background: #fff; color: var(--ink); }
 .connect-child-card .btn:hover { background: var(--paper); }
+.connect-child-button { min-width: 180px; padding: 15px 22px; font-size: 16px; }
+.qr-modal { text-align: center; }
+.qr-help { margin: 8px 0 18px; color: var(--ink-soft); line-height: 1.5; }
+.qr-modal #qrcode { display: flex; justify-content: center; margin: 0 auto 20px; }
+.qr-modal .form-row { text-align: left; }
+.qr-expiry { margin-top: 8px; text-align: left; }
+.qr-modal .form-actions { justify-content: center; }
 
 /* ---------- Marketing home ---------- */
 
