@@ -41,6 +41,21 @@ table.
 Open `http://localhost:3000/signup.html` to create the first family. Copy the
 verification URL from the development email log.
 
+## Build and test
+
+```bash
+npm test
+npm run build
+```
+
+`npm test` runs the API endpoint suite with Node's built-in test runner. It
+uses in-memory database and email fakes, so it does not need AWS credentials or
+contact DynamoDB or Mailjet.
+
+`npm run build` always runs the API tests before compiling the CDK TypeScript.
+A failing test stops the build. Front-end browser test recommendations are in
+[docs/frontend-integration-tests.md](docs/frontend-integration-tests.md).
+
 ## Existing JSON migration
 
 After deploying or creating the DynamoDB table:

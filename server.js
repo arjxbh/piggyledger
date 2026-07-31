@@ -586,7 +586,11 @@ app.use((error, req, res, next) => {
   return res.status(500).json({ error: 'Unexpected server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Piggy Ledger running at http://localhost:${PORT}`);
-  console.log(`On your local network, use this machine's IP address, e.g. http://192.168.1.X:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Piggy Ledger running at http://localhost:${PORT}`);
+    console.log(`On your local network, use this machine's IP address, e.g. http://192.168.1.X:${PORT}`);
+  });
+}
+
+module.exports = app;
