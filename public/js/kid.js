@@ -103,6 +103,7 @@ async function loadLedger() {
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
   await fetchWithToken('/api/logout', { method: 'POST' });
+  localStorage.removeItem('piggyledger_access_token');
   location.href = '/login.html';
 });
 

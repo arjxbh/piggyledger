@@ -19,6 +19,7 @@ let tokens;
 let verification;
 let sentSignup;
 let sentAccess;
+let signupEmailReservations;
 let server;
 let baseUrl;
 
@@ -53,15 +54,21 @@ function installFakes() {
     return change(data);
   };
   db.resolveAccessToken = async token => tokens.get(token) || null;
-  db.createAccessToken = async (id, lifetimeSeconds, kind) => {
+  db.createAccessToken = async (id, lifetimeSeconds, kind, options = {}) => {
     const token = `${kind}-token-${tokens.size}`;
     const expiresAt = new Date(Date.now() + lifetimeSeconds * 1000).toISOString();
-    tokens.set(token, { familyId: id, kind, expiresAt: Math.floor(Date.parse(expiresAt) / 1000) });
+    tokens.set(token, { familyId: id, kind, userId: options.userId, expiresAt: Math.floor(Date.parse(expiresAt) / 1000) });
     return { token, expiresAt };
   };
+  db.deleteAccessToken = async token => tokens.delete(token);
   db.putSignupVerification = async details => {
     verification = { ...details, token: 'verify-token', tokenHash: 'verify-hash' };
     return { token: verification.token, expiresAt: new Date(Date.now() + 1800000).toISOString() };
+  };
+  db.reserveSignupEmailSend = async address => {
+    if (signupEmailReservations.has(address)) return false;
+    signupEmailReservations.add(address);
+    return true;
   };
   db.getSignupVerification = async token => token === 'verify-token' ? verification : null;
   db.createFamily = async details => {
@@ -69,7 +76,7 @@ function installFakes() {
     return { familyId, userId: 1 };
   };
   db.familiesForEmail = async address => address === 'parent@example.com'
-    ? [{ familyId, familyName: 'Test Family' }]
+    ? [{ familyId, familyName: 'Test Family', userId: 1 }]
     : [];
   email.sendSignupVerification = async (to, token) => sentSignup.push({ to, token });
   email.sendAccessLinks = async (to, links) => sentAccess.push({ to, links });
@@ -103,6 +110,7 @@ class ApiClient {
   async login(userId = 1, secret = 'adult-password') {
     const response = await this.request('/api/login', { method: 'POST', body: { userId, secret } });
     assert.equal(response.status, 200);
+    this.token = response.body.sessionToken;
     return response;
   }
 }
@@ -131,13 +139,14 @@ after(() => new Promise((resolve, reject) => server.close(error => error ? rejec
 
 beforeEach(() => {
   data = initialData();
-  tokens = new Map([[familyToken, { familyId, kind: 'persistent', expiresAt: 2000000000 }]]);
+  tokens = new Map([[familyToken, { familyId, kind: 'qr-family', expiresAt: 2000000000 }]]);
   verification = {
     familyName: 'New Family', parentName: 'Alex', email: 'alex@example.com',
     secretHash: 'hash', token: 'verify-token', tokenHash: 'verify-hash'
   };
   sentSignup = [];
   sentAccess = [];
+  signupEmailReservations = new Set();
   installFakes();
 });
 
@@ -157,7 +166,8 @@ test('GET /api/access-token/status validates and describes links', async () => {
   const valid = await new ApiClient().request('/api/access-token/status');
   assert.equal(valid.status, 200);
   assert.equal(valid.body.familyId, familyId);
-  assert.equal(valid.body.kind, 'persistent');
+  assert.equal(valid.body.kind, 'qr-family');
+  assert.equal(valid.body.loginMode, 'choose-user');
   assert.match(valid.body.expiresAt, /^\d{4}-/);
   const invalid = await new ApiClient('bad').request('/api/access-token/status');
   assert.equal(invalid.status, 401);
@@ -176,6 +186,12 @@ test('POST /api/signup validates input and sends verification email', async () =
   assert.deepEqual(sentSignup, [{ to: 'alex@example.com', token: 'verify-token' }]);
   assert.equal(verification.familyName, 'New Family');
   assert.ok(await bcrypt.compare('long-password', verification.secretHash));
+
+  const repeated = await client.request('/api/signup', { method: 'POST', body: {
+    familyName: 'Another Family', parentName: 'Another Alex', email: 'alex@example.com', password: 'another-long-password'
+  } });
+  assert.equal(repeated.status, 202);
+  assert.equal(sentSignup.length, 1);
 });
 
 test('GET /api/signup/verify handles expired and valid requests', async () => {
@@ -185,7 +201,7 @@ test('GET /api/signup/verify handles expired and valid requests', async () => {
   assert.equal(expired.headers.get('location'), '/signup.html?status=expired');
   const valid = await client.request('/api/signup/verify?token=verify-token');
   assert.equal(valid.status, 302);
-  assert.match(valid.headers.get('location'), /^\/login\.html\?access_token=persistent-token-/);
+  assert.match(valid.headers.get('location'), /^\/login\.html\?access_token=email-token-/);
 });
 
 test('POST /api/access/request does not reveal accounts and emails known families', async () => {
@@ -198,7 +214,7 @@ test('POST /api/access/request does not reveal accounts and emails known familie
   assert.equal(known.body.message, unknown.body.message);
   assert.equal(sentAccess[0].to, 'parent@example.com');
   assert.equal(sentAccess[0].links[0].familyName, 'Test Family');
-  assert.match(sentAccess[0].links[0].url, /access_token=persistent-token-/);
+  assert.match(sentAccess[0].links[0].url, /access_token=email-token-/);
 });
 
 test('GET /api/users/public returns only safe profile fields', async () => {
@@ -213,9 +229,28 @@ test('POST /api/login rejects unknown users and bad secrets, then creates a sess
   assert.equal((await client.request('/api/login', { method: 'POST', body: { userId: 1, secret: 'wrong' } })).status, 401);
   const login = await client.login();
   assert.equal(login.body.user.name, 'Pat');
+  assert.match(login.body.sessionToken, /^session-token-/);
   const me = await client.request('/api/me');
   assert.equal(me.status, 200);
   assert.equal(me.body.user.id, 1);
+});
+
+test('POST /api/session/exchange signs in the user scoped by email or child QR', async () => {
+  tokens.set('email-link', { familyId, kind: 'email', userId: 1, expiresAt: 2000000000 });
+  const adult = new ApiClient('email-link');
+  const adultResult = await adult.request('/api/session/exchange', { method: 'POST' });
+  assert.equal(adultResult.status, 200);
+  assert.equal(adultResult.body.user.id, 1);
+  assert.match(adultResult.body.sessionToken, /^session-token-/);
+  assert.equal(tokens.has('email-link'), false);
+
+  tokens.set('child-link', { familyId, kind: 'qr-child', userId: 2, expiresAt: 2000000000 });
+  const child = new ApiClient('child-link');
+  const childResult = await child.request('/api/session/exchange', { method: 'POST' });
+  assert.equal(childResult.status, 200);
+  assert.equal(childResult.body.user.id, 2);
+  child.token = childResult.body.sessionToken;
+  assert.equal((await child.request('/api/me')).body.user.id, 2);
 });
 
 test('POST /api/logout destroys the session', async () => {
@@ -282,11 +317,17 @@ test('DELETE /api/users/:id prevents self-delete and removes another user', asyn
   assert.equal(data.users.some(user => user.id === 3), false);
 });
 
-test('POST /api/access-token is adult-only and creates a short QR link', async () => {
+test('POST /api/access-token creates family and passwordless child QR links', async () => {
   assert.equal((await (await kidClient()).request('/api/access-token', { method: 'POST' })).status, 403);
-  const result = await (await adultClient()).request('/api/access-token', { method: 'POST' });
-  assert.equal(result.status, 201);
-  assert.match(result.body.accessToken, /^qr-token-/);
+  const client = await adultClient();
+  const family = await client.request('/api/access-token', { method: 'POST', body: {} });
+  assert.equal(family.status, 201);
+  assert.match(family.body.accessToken, /^qr-family-token-/);
+  const child = await client.request('/api/access-token', { method: 'POST', body: { userId: 2 } });
+  assert.equal(child.status, 201);
+  assert.match(child.body.accessToken, /^qr-child-token-/);
+  assert.equal(tokens.get(child.body.accessToken).userId, 2);
+  assert.equal((await client.request('/api/access-token', { method: 'POST', body: { userId: 1 } })).status, 400);
 });
 
 test('GET /api/chores requires login and filters chores for kids', async () => {

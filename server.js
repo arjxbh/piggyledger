@@ -11,8 +11,8 @@ const { requireLogin, requireAdult } = require('./lib/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
-const QR_TOKEN_SECONDS = 10 * 60;
-const PERSISTENT_TOKEN_SECONDS = 90 * 24 * 60 * 60;
+const ENTRY_TOKEN_SECONDS = 30 * 60;
+const SESSION_TOKEN_SECONDS = 90 * 24 * 60 * 60;
 const SIGNUP_TOKEN_SECONDS = 30 * 60;
 const publicApiPaths = new Set([
   '/api/signup',
@@ -36,15 +36,23 @@ function rateLimit(key, maxRequests, windowMs) {
 
 async function requireAccessToken(req, res, next) {
   if (publicApiPaths.has(req.path)) return next();
-  if (req.session?.userId && req.session.familyId) {
+  const token = String(req.headers['x-access-token'] || req.query.access_token || '').trim();
+  if (!token && req.session?.userId && req.session.familyId) {
     req.familyId = req.session.familyId;
     return next();
   }
-  const token = String(req.headers['x-access-token'] || req.query.access_token || '').trim();
   const access = await db.resolveAccessToken(token);
   if (!access) return res.status(401).json({ error: 'Access token missing or expired', code: 'ACCESS_TOKEN_INVALID' });
   req.familyId = access.familyId;
   req.accessTokenKind = access.kind;
+  req.accessToken = token;
+  req.accessTokenUserId = access.userId;
+  if (access.kind === 'session' && access.userId) {
+    const data = await db.read(access.familyId);
+    const user = data?.users.find(value => value.id === access.userId);
+    if (!user) return res.status(401).json({ error: 'Session is no longer valid', code: 'ACCESS_TOKEN_INVALID' });
+    setLoggedInUser(req, user, access.familyId);
+  }
   return next();
 }
 
@@ -89,6 +97,27 @@ function managedUser(u) {
   return { ...publicUser(u), ...(u.role === 'adult' ? { email: u.email } : {}) };
 }
 
+function setLoggedInUser(req, user, familyId) {
+  req.session.userId = user.id;
+  req.session.familyId = familyId;
+  req.session.role = user.role;
+  req.session.name = user.name;
+}
+
+async function createUserSession(req, user) {
+  const sessionAccess = await db.createAccessToken(
+    req.familyId,
+    SESSION_TOKEN_SECONDS,
+    'session',
+    { userId: user.id }
+  );
+  setLoggedInUser(req, user, req.familyId);
+  if (req.accessToken && ['email', 'qr-child'].includes(req.accessTokenKind)) {
+    await db.deleteAccessToken(req.accessToken);
+  }
+  return sessionAccess;
+}
+
 function balanceForKid(data, kidId) {
   return data.ledger
     .filter(l => l.kidId === kidId)
@@ -108,6 +137,8 @@ app.get('/api/access-token/status', async (req, res) => {
   res.json({
     familyId: access.familyId,
     kind: access.kind,
+    loginMode: access.kind === 'qr-family' ? 'choose-user' : 'passwordless',
+    userId: access.userId,
     expiresAt: new Date(access.expiresAt * 1000).toISOString()
   });
 });
@@ -125,6 +156,11 @@ app.post('/api/signup', async (req, res) => {
   }
   if (password.length < 10) {
     return res.status(400).json({ error: 'Password must be at least 10 characters' });
+  }
+
+  const emailSendAllowed = await db.reserveSignupEmailSend(parentEmail);
+  if (!emailSendAllowed) {
+    return res.status(202).json({ ok: true, message: 'Check your email to finish creating your family.' });
   }
 
   const verification = await db.putSignupVerification({
@@ -150,7 +186,12 @@ app.get('/api/signup/verify', async (req, res) => {
       secretHash: verification.secretHash,
       verificationHash: verification.tokenHash
     });
-    const access = await db.createAccessToken(family.familyId, PERSISTENT_TOKEN_SECONDS, 'persistent');
+    const access = await db.createAccessToken(
+      family.familyId,
+      ENTRY_TOKEN_SECONDS,
+      'email',
+      { userId: family.userId }
+    );
     return res.redirect(`/login.html?access_token=${encodeURIComponent(access.token)}&welcome=1`);
   } catch (error) {
     if (error.name === 'TransactionCanceledException') {
@@ -171,7 +212,12 @@ app.post('/api/access/request', async (req, res) => {
   const families = await db.familiesForEmail(parentEmail);
   if (families.length > 0) {
     const links = await Promise.all(families.map(async family => {
-      const access = await db.createAccessToken(family.familyId, PERSISTENT_TOKEN_SECONDS, 'persistent');
+      const access = await db.createAccessToken(
+        family.familyId,
+        ENTRY_TOKEN_SECONDS,
+        'email',
+        { userId: family.userId }
+      );
       return {
         familyName: family.familyName,
         url: `${email.appBaseUrl}/login.html?access_token=${encodeURIComponent(access.token)}`
@@ -187,11 +233,35 @@ app.post('/api/access/request', async (req, res) => {
 
 // List of profiles for the login screen (no secrets included)
 app.get('/api/users/public', async (req, res) => {
+  if (req.accessTokenKind !== 'qr-family') {
+    return res.status(403).json({ error: 'This link does not allow profile selection' });
+  }
   const data = await db.read(req.familyId);
   res.json(data.users.map(publicUser));
 });
 
+app.post('/api/session/exchange', async (req, res) => {
+  if (!['email', 'qr-child'].includes(req.accessTokenKind) || !req.accessTokenUserId) {
+    return res.status(403).json({ error: 'This link cannot be used for passwordless sign-in' });
+  }
+  const data = await db.read(req.familyId);
+  const user = data?.users.find(value => value.id === req.accessTokenUserId);
+  if (!user) return res.status(401).json({ error: 'User is no longer available' });
+  if (req.accessTokenKind === 'qr-child' && user.role !== 'kid') {
+    return res.status(403).json({ error: 'Child sign-in link is invalid' });
+  }
+  const sessionAccess = await createUserSession(req, user);
+  res.json({
+    user: publicUser(user),
+    sessionToken: sessionAccess.token,
+    expiresAt: sessionAccess.expiresAt
+  });
+});
+
 app.post('/api/login', async (req, res) => {
+  if (req.accessTokenKind !== 'qr-family') {
+    return res.status(403).json({ error: 'Use a family QR code to choose a profile' });
+  }
   const { userId, secret } = req.body;
   const data = await db.read(req.familyId);
   const user = data.users.find(u => u.id === userId);
@@ -200,14 +270,18 @@ app.post('/api/login', async (req, res) => {
   const ok = bcrypt.compareSync(String(secret || ''), user.secretHash);
   if (!ok) return res.status(401).json({ error: 'Incorrect password/PIN' });
 
-  req.session.userId = user.id;
-  req.session.familyId = req.familyId;
-  req.session.role = user.role;
-  req.session.name = user.name;
-  res.json({ user: publicUser(user) });
+  const sessionAccess = await createUserSession(req, user);
+  res.json({
+    user: publicUser(user),
+    sessionToken: sessionAccess.token,
+    expiresAt: sessionAccess.expiresAt
+  });
 });
 
-app.post('/api/logout', (req, res) => {
+app.post('/api/logout', async (req, res) => {
+  if (req.accessTokenKind === 'session' && req.accessToken) {
+    await db.deleteAccessToken(req.accessToken);
+  }
   req.session.destroy(() => res.json({ ok: true }));
 });
 
@@ -316,7 +390,24 @@ app.delete('/api/users/:id', requireAdult, async (req, res) => {
 });
 
 app.post('/api/access-token', requireAdult, async (req, res) => {
-  const access = await db.createAccessToken(req.familyId, QR_TOKEN_SECONDS, 'qr');
+  const userId = req.body.userId === undefined || req.body.userId === null || req.body.userId === ''
+    ? null
+    : Number(req.body.userId);
+  let kind = 'qr-family';
+  if (userId !== null) {
+    const data = await db.read(req.familyId);
+    const user = data.users.find(value => value.id === userId);
+    if (!user || user.role !== 'kid') {
+      return res.status(400).json({ error: 'Child QR codes require a valid child' });
+    }
+    kind = 'qr-child';
+  }
+  const access = await db.createAccessToken(
+    req.familyId,
+    ENTRY_TOKEN_SECONDS,
+    kind,
+    { userId: userId ?? undefined }
+  );
   res.status(201).json({ accessToken: access.token, expiresAt: access.expiresAt });
 });
 

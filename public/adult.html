@@ -24,14 +24,18 @@
     <div class="connect-child-card">
       <div class="connect-child-copy">
         <div class="connect-child-label">Child sign-in</div>
-        <h2>Give your child a QR code</h2>
+        <h2>Create a family or child QR code</h2>
         <ol>
           <li>Open Piggy Ledger on your child’s device.</li>
           <li>Tap <strong>Scan QR code</strong>.</li>
           <li>Show the code from this page.</li>
         </ol>
       </div>
-      <button class="btn btn-primary connect-child-button" id="showTokenBtn">Show QR code</button>
+      <div>
+        <label for="qrUser">Who is signing in?</label>
+        <select id="qrUser"><option value="">Whole family</option></select>
+        <button class="btn btn-primary connect-child-button" id="showTokenBtn">Show QR code</button>
+      </div>
     </div>
 
     <div class="tabs">
@@ -209,8 +213,8 @@
 
   <div class="modal-backdrop hidden" id="tokenModal">
     <div class="modal qr-modal">
-      <h2>Child sign-in QR code</h2>
-      <p class="qr-help">On your child’s device, tap <strong>Scan QR code</strong>. Then point its camera at this code.</p>
+      <h2 id="tokenTitle">Sign-in QR code</h2>
+      <p class="qr-help" id="tokenHelp">Scan this code from the login screen.</p>
       <div id="qrcode"></div>
       <div class="form-row">
         <label for="accessTokenValue">Or send this link to your child’s device</label>

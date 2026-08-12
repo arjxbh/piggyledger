@@ -14,8 +14,8 @@ Every balance change is an immutable ledger entry.
 
 Access lifetimes are deliberately different:
 
-- QR links: 10 minutes
-- Emailed and browser-persistent links: 90 days
+- Email, family QR, and child-specific QR entry links: 30 minutes
+- Browser session links issued after successful sign-in: 90 days
 - Signup verification links: 30 minutes
 
 The browser stores a successful access token in local storage. An expired token

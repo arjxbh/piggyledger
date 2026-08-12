@@ -326,7 +326,13 @@ function openChangePasswordModal() {
 }
 
 async function openTokenModal() {
-  const tokenRes = await fetchWithToken('/api/access-token', { method: 'POST' });
+  const selectedUserId = document.getElementById('qrUser').value;
+  const selectedUser = allUsers.find(user => user.id === Number(selectedUserId));
+  const tokenRes = await fetchWithToken('/api/access-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: selectedUserId ? Number(selectedUserId) : null })
+  });
   if (!tokenRes.ok) {
     alert('Unable to create a child sign-in QR code. Please try again.');
     return;
@@ -334,7 +340,13 @@ async function openTokenModal() {
   const { accessToken, expiresAt } = await tokenRes.json();
   const shareUrl = `${window.location.origin}/login.html?access_token=${encodeURIComponent(accessToken)}`;
   document.getElementById('accessTokenValue').value = shareUrl;
-  document.getElementById('qrExpiry').textContent = `This code works until ${new Date(expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
+  document.getElementById('tokenTitle').textContent = selectedUser
+    ? `${selectedUser.name}'s sign-in QR code`
+    : 'Family sign-in QR code';
+  document.getElementById('tokenHelp').textContent = selectedUser
+    ? `${selectedUser.name} can use this code to sign in without a PIN.`
+    : 'Anyone in the family can use this code, then choose their profile and enter their PIN or password.';
+  document.getElementById('qrExpiry').textContent = `${selectedUser ? 'This one-time code' : 'This family code'} expires at ${new Date(expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
   document.getElementById('copyChildLinkBtn').textContent = 'Copy link';
   document.getElementById('qrcode').innerHTML = '';
   new QRCode(document.getElementById('qrcode'), {
@@ -378,6 +390,7 @@ function wireUp() {
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetchWithToken('/api/logout', { method: 'POST' });
+    localStorage.removeItem('piggyledger_access_token');
     location.href = '/login.html';
   });
 
@@ -460,6 +473,10 @@ function wireUp() {
 
   // role toggle affects the login fields on the add-person form
   document.getElementById('showTokenBtn').addEventListener('click', () => {
+    const select = document.getElementById('qrUser');
+    const kids = allUsers.filter(user => user.role === 'kid');
+    select.innerHTML = '<option value="">Whole family - PIN/password required</option>' +
+      kids.map(user => `<option value="${user.id}">${escapeHtml(user.name)} - no PIN required</option>`).join('');
     openTokenModal();
   });
 

@@ -636,6 +636,9 @@ td.amt.neg { color: var(--coral); }
 }
 .marketing-footer .marketing-brand { color: var(--ink); font-size: 17px; }
 .marketing-footer .marketing-brand img { width: 32px; height: 32px; }
+.footer-contribute { text-align: right; }
+.footer-contribute a { color: var(--ink); font-weight: 700; }
+.footer-contribute a:hover { color: var(--accent-deep); }
 
 /* ---------- Empty state ---------- */
 .empty { text-align: center; padding: 40px 20px; color: var(--ink-soft); }
@@ -675,6 +678,7 @@ td.amt.neg { color: var(--coral); }
   .access-section { grid-template-columns: 1fr; gap: 28px; padding: 38px 24px; }
   .access-form-row { flex-direction: column; }
   .marketing-footer { padding: 22px 18px; gap: 18px; align-items: flex-start; flex-direction: column; }
+  .footer-contribute { text-align: left; }
   .login-wrap { padding: 24px 18px; }
   .connect-child-card { align-items: flex-start; flex-direction: column; }
   .connect-child-card .btn { width: 100%; justify-content: center; }

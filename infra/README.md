@@ -60,8 +60,8 @@ the table.
 ## Email behavior
 
 - Signup verification links expire after 30 minutes.
-- QR access links expire after 10 minutes.
-- Emailed access links expire after 90 days.
+- Email, family QR, and child-specific QR entry links expire after 30 minutes.
+- Browser session links issued after successful sign-in expire after 90 days.
 - DynamoDB TTL removes expired records asynchronously, while the application
   rejects them immediately based on their stored expiration time.
 

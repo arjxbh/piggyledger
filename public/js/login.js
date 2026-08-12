@@ -58,30 +58,32 @@ async function accessTokenStatus(token) {
 }
 
 async function handleNewAccessToken(token) {
-  const currentToken = getAccessToken();
-  const [incoming, current] = await Promise.all([
-    accessTokenStatus(token),
-    accessTokenStatus(currentToken)
-  ]);
+  const incoming = await accessTokenStatus(token);
   if (!incoming) {
-    setAccessControls(Boolean(current));
-    setLoginSubtitle(current ? 'Choose your name to sign in.' : 'That QR code or link has expired. Ask your parent for a new one.');
+    setAccessControls(false);
+    setLoginSubtitle('That QR code or link has expired. Ask for a new one.');
     return false;
   }
 
-  const keepCurrent = current &&
-    current.familyId === incoming.familyId &&
-    Date.parse(current.expiresAt) >= Date.parse(incoming.expiresAt);
-  if (!keepCurrent) {
-    localStorage.setItem('piggyledger_access_token', token);
+  if (incoming.loginMode === 'passwordless') {
+    const response = await fetch('/api/session/exchange', {
+      method: 'POST',
+      headers: { 'X-Access-Token': token }
+    });
+    if (!response.ok) {
+      setAccessControls(false);
+      setLoginSubtitle('That sign-in link could not be used. Ask for a new one.');
+      return false;
+    }
+    const { user, sessionToken } = await response.json();
+    localStorage.setItem('piggyledger_access_token', sessionToken);
+    location.replace(user.role === 'adult' ? '/adult.html' : '/kid.html');
+    return true;
   }
+
+  localStorage.setItem('piggyledger_access_token', token);
   setAccessControls(true);
-  await fetchWithToken('/api/logout', { method: 'POST' });
-  setLoginSubtitle(
-    keepCurrent
-      ? 'You’re ready. Choose your name to sign in.'
-      : 'You’re ready. Choose your name to sign in.'
-  );
+  setLoginSubtitle('Choose your name to sign in.');
   return true;
 }
 
@@ -143,7 +145,8 @@ async function init() {
   const urlToken = parseAccessTokenFromUrlSearch(window.location.search);
   if (urlToken) {
     history.replaceState(null, '', window.location.pathname);
-    await handleNewAccessToken(urlToken);
+    const accepted = await handleNewAccessToken(urlToken);
+    if (accepted && !document.getElementById('loginEntry').classList.contains('hidden')) return;
   } else {
     updateAccessTokenStatus();
   }
@@ -214,7 +217,8 @@ async function attemptLogin(secret) {
     body: JSON.stringify({ userId: currentUser.id, secret })
   });
   if (res.ok) {
-    const { user } = await res.json();
+    const { user, sessionToken } = await res.json();
+    localStorage.setItem('piggyledger_access_token', sessionToken);
     location.href = user.role === 'adult' ? '/adult.html' : '/kid.html';
   } else {
     const { error } = await res.json();
