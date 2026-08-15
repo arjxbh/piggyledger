@@ -42,6 +42,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="chores">Chores</button>
       <button class="tab" data-tab="balances">Balances</button>
+      <button class="tab" data-tab="requests">Money requests <span class="request-count hidden" id="requestCount">0</span></button>
       <button class="tab" data-tab="audit">Audit trail</button>
       <button class="tab" data-tab="people">People</button>
     </div>
@@ -83,6 +84,17 @@
     <div class="tab-panel" id="panel-balances">
       <div class="section-head"><h2>Piggy banks</h2></div>
       <div class="kid-grid" id="kidGrid"></div>
+    </div>
+
+    <!-- MONEY REQUESTS -->
+    <div class="tab-panel" id="panel-requests">
+      <div class="section-head">
+        <div>
+          <h2>Money requests</h2>
+          <div class="muted">Move the physical money first, then approve the request.</div>
+        </div>
+      </div>
+      <div class="request-list" id="moneyRequestList"></div>
     </div>
 
     <!-- AUDIT -->

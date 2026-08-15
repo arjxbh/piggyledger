@@ -411,6 +411,130 @@ app.post('/api/access-token', requireAdult, async (req, res) => {
   res.status(201).json({ accessToken: access.token, expiresAt: access.expiresAt });
 });
 
+// ---------- deposit and withdrawal requests ----------
+
+app.get('/api/money-requests', requireLogin, async (req, res) => {
+  const data = await db.read(req.familyId);
+  let requests = data.moneyRequests || [];
+  if (req.session.role === 'kid') {
+    requests = requests.filter(request => request.kidId === req.session.userId);
+  }
+  requests = [...requests].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json(requests);
+});
+
+app.post('/api/money-requests', requireLogin, async (req, res) => {
+  if (req.session.role !== 'kid') return res.status(403).json({ error: 'Kids only' });
+
+  const kind = String(req.body.kind || '');
+  const amount = req.body.amount === null ? null : Number(req.body.amount);
+  if (!['deposit', 'withdrawal'].includes(kind)) {
+    return res.status(400).json({ error: 'Request must be a deposit or withdrawal' });
+  }
+  if (amount !== null && (!Number.isInteger(amount) || amount <= 0 || amount > 100000)) {
+    return res.status(400).json({ error: 'Amount must be between $0.01 and $1,000.00' });
+  }
+
+  const result = await db.mutate(req.familyId, data => {
+    const kid = data.users.find(user => user.id === req.session.userId && user.role === 'kid');
+    if (!kid) return { error: 'kid-not-found' };
+    if (kind === 'withdrawal' && amount !== null && balanceForKid(data, kid.id) < amount) {
+      return { error: 'insufficient-balance' };
+    }
+
+    const now = new Date().toISOString();
+    const request = {
+      id: db.nextId(data),
+      kidId: kid.id,
+      kidName: kid.name,
+      kind,
+      amount,
+      status: 'pending',
+      createdAt: now,
+      resolvedAt: null,
+      resolvedBy: null,
+      resolvedByName: null
+    };
+    data.moneyRequests ||= [];
+    data.moneyRequests.push(request);
+    data.ledger.push({
+      id: db.nextId(data),
+      kidId: kid.id,
+      amount: 0,
+      reason: `${kind === 'deposit' ? 'Deposit' : 'Withdrawal'} requested${amount === null ? ' - help choosing amount' : `: $${(amount / 100).toFixed(2)}`}`,
+      type: 'money-request',
+      moneyRequestId: request.id,
+      date: now,
+      createdBy: kid.id,
+      createdByName: kid.name
+    });
+    return { request, adultEmails: data.users.filter(user => user.role === 'adult' && user.email).map(user => user.email) };
+  });
+
+  if (result.error === 'kid-not-found') return res.status(400).json({ error: 'Kid not found' });
+  if (result.error === 'insufficient-balance') {
+    return res.status(400).json({ error: 'That withdrawal is more than your current balance' });
+  }
+
+  const deliveries = await Promise.allSettled(result.adultEmails.map(to => email.sendMoneyRequest(to, result.request)));
+  const emailSent = deliveries.length > 0 && deliveries.every(delivery => delivery.status === 'fulfilled');
+  if (!emailSent) {
+    console.error(JSON.stringify({ level: 'error', message: 'Money request email notification failed', requestId: result.request.id }));
+  }
+  res.status(201).json({ ...result.request, emailSent });
+});
+
+app.post('/api/money-requests/:id/resolve', requireAdult, async (req, res) => {
+  const requestId = Number(req.params.id);
+  const decision = String(req.body.decision || '');
+  if (!['approved', 'denied'].includes(decision)) {
+    return res.status(400).json({ error: 'Decision must be approved or denied' });
+  }
+
+  const suppliedAmount = req.body.amount === undefined ? null : Number(req.body.amount);
+  const result = await db.mutate(req.familyId, data => {
+    const request = (data.moneyRequests || []).find(value => value.id === requestId);
+    if (!request) return { error: 'not-found' };
+    if (request.status !== 'pending') return { error: 'already-resolved' };
+
+    const amount = request.amount === null ? suppliedAmount : request.amount;
+    if (decision === 'approved' && (!Number.isInteger(amount) || amount <= 0 || amount > 100000)) {
+      return { error: 'bad-amount' };
+    }
+    if (decision === 'approved' && request.kind === 'withdrawal' && balanceForKid(data, request.kidId) < amount) {
+      return { error: 'insufficient-balance' };
+    }
+
+    const now = new Date().toISOString();
+    request.status = decision;
+    request.resolvedAt = now;
+    request.resolvedBy = req.session.userId;
+    request.resolvedByName = req.session.name;
+    if (decision === 'approved') request.amount = amount;
+
+    const action = request.kind === 'deposit' ? 'Deposit' : 'Withdrawal';
+    const entry = {
+      id: db.nextId(data),
+      kidId: request.kidId,
+      amount: decision === 'approved' ? (request.kind === 'deposit' ? amount : -amount) : 0,
+      reason: decision === 'approved' ? `${action} approved` : `${action} request denied`,
+      type: 'money-request-resolution',
+      moneyRequestId: request.id,
+      date: now,
+      createdBy: req.session.userId,
+      createdByName: req.session.name
+    };
+    data.ledger.push(entry);
+    return { request, entry };
+  });
+
+  if (result.error === 'not-found') return res.status(404).json({ error: 'Request not found' });
+  if (result.error === 'already-resolved') return res.status(409).json({ error: 'Request was already resolved' });
+  if (result.error === 'bad-amount') return res.status(400).json({ error: 'Enter an amount between $0.01 and $1,000.00' });
+  if (result.error === 'insufficient-balance') return res.status(400).json({ error: 'The withdrawal is more than the current balance' });
+  res.json(result);
+});
+
 // ---------- chores ----------
 
 app.get('/api/chores', requireLogin, async (req, res) => {

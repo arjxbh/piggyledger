@@ -151,6 +151,51 @@ h2 { font-size: 21px; }
 }
 .balance-hero .amount .cents { font-size: 26px; opacity: 0.7; }
 
+/* ---------- Kid money requests ---------- */
+
+.money-actions { margin-bottom: 30px; }
+.money-actions h2 { margin-bottom: 14px; }
+.money-action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.money-action {
+  min-height: 190px;
+  padding: 20px;
+  border: 3px solid transparent;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 800;
+}
+.money-action.deposit { background: var(--mint-bg); border-color: var(--mint); }
+.money-action.withdrawal { background: var(--sky-bg); border-color: var(--sky); }
+.money-action:hover { transform: translateY(-2px); }
+.money-action:focus-visible { outline: 4px solid var(--gold); outline-offset: 3px; }
+.money-action svg { width: 112px; height: 92px; fill: currentColor; }
+.money-action .arrow { fill: none; stroke: currentColor; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+.kid-money-modal { width: 500px; text-align: center; }
+.kid-money-modal h2 { font-size: 32px; }
+.request-total { min-height: 70px; margin: 10px 0; color: var(--gold-dark); font-family: var(--mono); font-size: 52px; font-weight: 800; }
+.amount-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.amount-pad button {
+  min-height: 78px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 29px;
+  font-weight: 800;
+}
+.amount-pad button:hover { border-color: var(--gold); }
+.amount-pad .amount-help { background: var(--gold-bg, #FCF1DD); color: var(--gold-dark); font-size: 44px; }
+.amount-pad .amount-clear { font-family: var(--body); font-size: 15px; }
+.request-message { min-height: 24px; margin: 14px 0 4px; color: var(--ink-soft); font-size: 16px; }
+.request-send { width: 100%; justify-content: center; padding: 16px 20px; font-size: 19px; }
+
 /* ---------- Chore tickets ---------- */
 
 .ticket-list { display: flex; flex-direction: column; gap: 10px; }
@@ -285,6 +330,46 @@ h2 { font-size: 21px; }
 .tab.active { color: var(--ink); border-bottom-color: var(--gold); }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
+.request-count {
+  min-width: 21px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--coral);
+  color: #fff;
+  font-family: var(--body);
+  font-size: 11px;
+  text-align: center;
+}
+
+.request-list { display: flex; flex-direction: column; gap: 12px; }
+.request-card {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-card);
+}
+.request-card.resolved { opacity: 0.72; }
+.request-kind-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sky-bg);
+  color: var(--sky);
+  font-size: 30px;
+  font-weight: 800;
+}
+.request-card.deposit .request-kind-icon { background: var(--mint-bg); color: var(--mint); }
+.request-card h3 { font-family: var(--body); font-size: 18px; font-weight: 750; }
+.request-card .request-amount { margin-top: 3px; font-family: var(--mono); font-size: 24px; color: var(--gold-dark); }
+.request-card .request-meta { margin-top: 4px; color: var(--ink-soft); font-size: 13px; }
+.request-actions { display: flex; align-items: flex-end; gap: 8px; }
+.request-actions .form-row { width: 125px; margin: 0; }
 
 /* ---------- Kid balance cards (adult overview) ---------- */
 
@@ -723,6 +808,13 @@ td.amt.neg { color: var(--coral); }
   .theme-toggle { right: 12px; bottom: 12px; }
   .form-grid { grid-template-columns: 1fr; }
   .balance-hero { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .money-action-grid { gap: 10px; }
+  .money-action { min-height: 155px; padding: 14px 8px; font-size: 19px; }
+  .money-action svg { width: 88px; height: 74px; }
+  .amount-pad { grid-template-columns: repeat(2, 1fr); }
+  .request-card { grid-template-columns: 48px 1fr; }
+  .request-kind-icon { width: 46px; height: 46px; }
+  .request-actions { grid-column: 1 / -1; flex-wrap: wrap; }
   .marketing-nav { padding: 16px 18px; }
   .marketing-brand { font-size: 18px; }
   .marketing-brand img { width: 36px; height: 36px; }

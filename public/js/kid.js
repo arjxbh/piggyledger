@@ -1,4 +1,7 @@
 let me = null;
+let requestKind = null;
+let requestAmount = 0;
+let needsAmountHelp = false;
 
 function money(cents) {
   const negative = cents < 0;
@@ -38,6 +41,51 @@ async function loadBalance() {
   const res = await fetchWithToken(`/api/balance/${me.id}`);
   const data = await res.json();
   document.getElementById('balanceAmt').textContent = money(data.balance);
+}
+
+function updateRequestAmount() {
+  const total = document.getElementById('requestTotal');
+  total.textContent = needsAmountHelp ? '?' : money(requestAmount);
+  document.getElementById('sendMoneyRequestBtn').disabled = requestAmount === 0 && !needsAmountHelp;
+  document.getElementById('requestMessage').textContent = needsAmountHelp
+    ? 'Your parent will help choose the amount.'
+    : requestAmount > 0 ? 'Tap another number to add more.' : '';
+}
+
+function openMoneyRequest(kind) {
+  requestKind = kind;
+  requestAmount = 0;
+  needsAmountHelp = false;
+  document.getElementById('moneyRequestTitle').textContent = kind === 'deposit'
+    ? 'How much goes in?'
+    : 'How much comes out?';
+  document.getElementById('sendMoneyRequestBtn').textContent = 'Ask my parent';
+  document.getElementById('moneyRequestModal').classList.remove('hidden');
+  updateRequestAmount();
+}
+
+async function sendMoneyRequest() {
+  const button = document.getElementById('sendMoneyRequestBtn');
+  button.disabled = true;
+  button.textContent = 'Sending...';
+  const res = await fetchWithToken('/api/money-requests', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind: requestKind, amount: needsAmountHelp ? null : requestAmount })
+  });
+  const result = await res.json();
+  if (!res.ok) {
+    document.getElementById('requestMessage').textContent = result.error || 'Please try again.';
+    button.textContent = 'Ask my parent';
+    button.disabled = false;
+    return;
+  }
+
+  document.getElementById('requestTotal').textContent = 'Sent!';
+  document.getElementById('requestMessage').textContent = 'Your parent can check it now.';
+  button.textContent = 'Done';
+  await loadLedger();
+  setTimeout(() => document.getElementById('moneyRequestModal').classList.add('hidden'), 900);
 }
 
 async function loadChores() {
@@ -106,5 +154,35 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   localStorage.removeItem('piggyledger_access_token');
   location.href = '/login.html';
 });
+
+document.querySelectorAll('[data-money-kind]').forEach(button => {
+  button.addEventListener('click', () => openMoneyRequest(button.dataset.moneyKind));
+});
+
+document.querySelectorAll('[data-add-amount]').forEach(button => {
+  button.addEventListener('click', () => {
+    needsAmountHelp = false;
+    requestAmount += Number(button.dataset.addAmount);
+    updateRequestAmount();
+  });
+});
+
+document.getElementById('amountHelpBtn').addEventListener('click', () => {
+  requestAmount = 0;
+  needsAmountHelp = true;
+  updateRequestAmount();
+});
+
+document.getElementById('amountClearBtn').addEventListener('click', () => {
+  requestAmount = 0;
+  needsAmountHelp = false;
+  updateRequestAmount();
+});
+
+document.getElementById('cancelMoneyRequestBtn').addEventListener('click', () => {
+  document.getElementById('moneyRequestModal').classList.add('hidden');
+});
+
+document.getElementById('sendMoneyRequestBtn').addEventListener('click', sendMoneyRequest);
 
 init();

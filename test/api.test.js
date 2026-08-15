@@ -19,6 +19,7 @@ let tokens;
 let verification;
 let sentSignup;
 let sentAccess;
+let sentMoneyRequests;
 let signupEmailReservations;
 let server;
 let baseUrl;
@@ -41,7 +42,8 @@ function initialData() {
       { id: 13, kidId: 2, amount: 5, reason: 'Allowance', type: 'adjustment', date: '2026-01-01T12:00:00.000Z', createdBy: 1, createdByName: 'Pat' },
       { id: 14, kidId: 2, amount: -1, reason: 'Snack', type: 'adjustment', date: '2026-01-03T12:00:00.000Z', createdBy: 1, createdByName: 'Pat' },
       { id: 15, kidId: 3, amount: 7, reason: 'Gift', type: 'adjustment', date: '2026-01-02T12:00:00.000Z', createdBy: 1, createdByName: 'Pat' }
-    ]
+    ],
+    moneyRequests: []
   };
 }
 
@@ -80,6 +82,7 @@ function installFakes() {
     : [];
   email.sendSignupVerification = async (to, token) => sentSignup.push({ to, token });
   email.sendAccessLinks = async (to, links) => sentAccess.push({ to, links });
+  email.sendMoneyRequest = async (to, request) => sentMoneyRequests.push({ to, request });
 }
 
 class ApiClient {
@@ -146,6 +149,7 @@ beforeEach(() => {
   };
   sentSignup = [];
   sentAccess = [];
+  sentMoneyRequests = [];
   signupEmailReservations = new Set();
   installFakes();
 });
@@ -328,6 +332,51 @@ test('POST /api/access-token creates family and passwordless child QR links', as
   assert.match(child.body.accessToken, /^qr-child-token-/);
   assert.equal(tokens.get(child.body.accessToken).userId, 2);
   assert.equal((await client.request('/api/access-token', { method: 'POST', body: { userId: 1 } })).status, 400);
+});
+
+test('kids create money requests that notify adults and appear in the ledger', async () => {
+  const kid = await kidClient();
+  assert.equal((await kid.request('/api/money-requests', { method: 'POST', body: { kind: 'other', amount: 500 } })).status, 400);
+  assert.equal((await kid.request('/api/money-requests', { method: 'POST', body: { kind: 'withdrawal', amount: 500 } })).status, 400);
+
+  const result = await kid.request('/api/money-requests', { method: 'POST', body: { kind: 'deposit', amount: 500 } });
+  assert.equal(result.status, 201);
+  assert.equal(result.body.status, 'pending');
+  assert.equal(data.moneyRequests.length, 1);
+  assert.equal(data.ledger.at(-1).moneyRequestId, result.body.id);
+  assert.equal(data.ledger.at(-1).amount, 0);
+  assert.deepEqual(sentMoneyRequests.map(message => message.to), ['parent@example.com']);
+
+  const own = await kid.request('/api/money-requests');
+  assert.equal(own.body.length, 1);
+  const otherKid = await kidClient(3, '5678');
+  assert.equal((await otherKid.request('/api/money-requests')).body.length, 0);
+  assert.equal((await (await adultClient()).request('/api/money-requests')).body.length, 1);
+});
+
+test('adults approve or deny money requests and record each resolution', async () => {
+  data.moneyRequests.push(
+    { id: 16, kidId: 2, kidName: 'Sam', kind: 'withdrawal', amount: null, status: 'pending', createdAt: '2026-01-04T12:00:00.000Z' },
+    { id: 17, kidId: 2, kidName: 'Sam', kind: 'deposit', amount: 200, status: 'pending', createdAt: '2026-01-04T13:00:00.000Z' }
+  );
+  const adult = await adultClient();
+  assert.equal((await adult.request('/api/money-requests/16/resolve', { method: 'POST', body: { decision: 'approved' } })).status, 400);
+
+  const approved = await adult.request('/api/money-requests/16/resolve', {
+    method: 'POST', body: { decision: 'approved', amount: 3 }
+  });
+  assert.equal(approved.status, 200);
+  assert.equal(approved.body.entry.amount, -3);
+  assert.equal(approved.body.request.amount, 3);
+  assert.equal((await adult.request('/api/money-requests/16/resolve', { method: 'POST', body: { decision: 'denied' } })).status, 409);
+
+  const denied = await adult.request('/api/money-requests/17/resolve', {
+    method: 'POST', body: { decision: 'denied' }
+  });
+  assert.equal(denied.status, 200);
+  assert.equal(denied.body.entry.amount, 0);
+  assert.equal(denied.body.request.status, 'denied');
+  assert.match(data.ledger.at(-1).reason, /denied/i);
 });
 
 test('GET /api/chores requires login and filters chores for kids', async () => {

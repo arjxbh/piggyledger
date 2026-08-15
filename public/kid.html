@@ -15,6 +15,26 @@
       <span id="whoName"></span>
       <button class="logout" id="logoutBtn">Log out</button>
     </div>
+
+    <section class="money-actions" aria-labelledby="moneyActionsTitle">
+      <h2 id="moneyActionsTitle">My money</h2>
+      <div class="money-action-grid">
+        <button class="money-action deposit" type="button" data-money-kind="deposit">
+          <svg viewBox="0 0 120 100" aria-hidden="true">
+            <path d="M24 45h72v43H24zM18 39h84v12H18zM45 18h30v21H45z"/>
+            <path class="arrow" d="M60 5v25m-10-10 10 10 10-10"/>
+          </svg>
+          <span>Put money in</span>
+        </button>
+        <button class="money-action withdrawal" type="button" data-money-kind="withdrawal">
+          <svg viewBox="0 0 120 100" aria-hidden="true">
+            <path d="M24 45h72v43H24zM18 39h84v12H18zM45 18h30v21H45z"/>
+            <path class="arrow" d="M60 31V6M50 16 60 6l10 10"/>
+          </svg>
+          <span>Take money out</span>
+        </button>
+      </div>
+    </section>
   </div>
 
   <main>
@@ -44,6 +64,24 @@
       </table>
     </div>
   </main>
+
+  <div class="modal-backdrop hidden" id="moneyRequestModal">
+    <div class="modal kid-money-modal" role="dialog" aria-modal="true" aria-labelledby="moneyRequestTitle">
+      <h2 id="moneyRequestTitle">How much?</h2>
+      <div class="request-total" id="requestTotal">$0</div>
+      <div class="amount-pad" aria-label="Choose an amount">
+        <button type="button" data-add-amount="100">$1</button>
+        <button type="button" data-add-amount="500">$5</button>
+        <button type="button" data-add-amount="1000">$10</button>
+        <button type="button" data-add-amount="2000">$20</button>
+        <button type="button" class="amount-help" id="amountHelpBtn" aria-label="I do not know the amount">?</button>
+        <button type="button" class="amount-clear" id="amountClearBtn">Start over</button>
+      </div>
+      <div class="request-message" id="requestMessage" aria-live="polite"></div>
+      <button class="btn btn-primary request-send" type="button" id="sendMoneyRequestBtn" disabled>Ask my parent</button>
+      <button class="back-link" type="button" id="cancelMoneyRequestBtn">Never mind</button>
+    </div>
+  </div>
 
   <script src="/js/kid.js"></script>
 </body>

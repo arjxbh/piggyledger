@@ -63,6 +63,7 @@ async function init() {
   await loadChores();
   await loadBalances();
   await loadAudit();
+  await loadMoneyRequests();
   wireUp();
 }
 
@@ -108,6 +109,12 @@ async function loadAudit(params = {}) {
   const res = await fetchWithToken('/api/ledger' + (qs ? `?${qs}` : ''));
   const entries = await res.json();
   renderAudit(entries);
+}
+
+async function loadMoneyRequests() {
+  const res = await fetchWithToken('/api/money-requests');
+  const requests = await res.json();
+  renderMoneyRequests(requests);
 }
 
 // ---------- rendering ----------
@@ -213,6 +220,76 @@ function renderAudit(entries) {
       <td class="amt ${e.amount >= 0 ? 'pos' : 'neg'}">${e.amount >= 0 ? '+' : ''}${money(e.amount)}</td>
     </tr>
   `).join('');
+}
+
+function renderMoneyRequests(requests) {
+  const list = document.getElementById('moneyRequestList');
+  const pendingCount = requests.filter(request => request.status === 'pending').length;
+  const count = document.getElementById('requestCount');
+  count.textContent = pendingCount;
+  count.classList.toggle('hidden', pendingCount === 0);
+
+  if (requests.length === 0) {
+    list.innerHTML = '<div class="empty">No money requests yet.</div>';
+    return;
+  }
+
+  list.innerHTML = requests.map(request => {
+    const action = request.kind === 'deposit' ? 'Deposit' : 'Withdrawal';
+    const amount = request.amount === null ? 'Needs help choosing' : money(request.amount);
+    const pending = request.status === 'pending';
+    const resolution = pending
+      ? `Asked ${fmtDate(request.createdAt)}`
+      : `${request.status === 'approved' ? 'Approved' : 'Denied'} by ${escapeHtml(request.resolvedByName || 'an adult')} on ${fmtDate(request.resolvedAt)}`;
+    return `
+      <div class="request-card ${request.kind} ${pending ? '' : 'resolved'}">
+        <div class="request-kind-icon" aria-hidden="true">${request.kind === 'deposit' ? '+' : '-'}</div>
+        <div>
+          <h3>${escapeHtml(request.kidName || kidName(request.kidId))}: ${action}</h3>
+          <div class="request-amount">${amount}</div>
+          <div class="request-meta">${resolution}</div>
+        </div>
+        ${pending ? `
+          <div class="request-actions">
+            ${request.amount === null ? `
+              <div class="form-row">
+                <label for="requestAmount${request.id}">Amount ($)</label>
+                <input type="number" id="requestAmount${request.id}" min="0.01" max="1000" step="0.01" placeholder="0.00">
+              </div>` : ''}
+            <button class="btn btn-mint" data-request-approve="${request.id}">Approve</button>
+            <button class="btn btn-ghost" data-request-deny="${request.id}">Deny</button>
+          </div>` : ''}
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-request-approve]').forEach(button => {
+    button.addEventListener('click', () => resolveMoneyRequest(Number(button.dataset.requestApprove), 'approved'));
+  });
+  list.querySelectorAll('[data-request-deny]').forEach(button => {
+    button.addEventListener('click', () => resolveMoneyRequest(Number(button.dataset.requestDeny), 'denied'));
+  });
+}
+
+async function resolveMoneyRequest(requestId, decision) {
+  const amountInput = document.getElementById(`requestAmount${requestId}`);
+  const amount = amountInput ? toCents(amountInput.value) : undefined;
+  if (decision === 'approved' && amountInput && (!amountInput.value || amount <= 0)) {
+    alert('Enter the amount you handled.');
+    return;
+  }
+  if (decision === 'approved' && !confirm('Have you moved the physical money? Approving will update the balance.')) return;
+
+  const res = await fetchWithToken(`/api/money-requests/${requestId}/resolve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision, ...(amount === undefined ? {} : { amount }) })
+  });
+  if (!res.ok) {
+    const result = await res.json();
+    alert(result.error || 'Unable to update this request.');
+    return;
+  }
+  await Promise.all([loadMoneyRequests(), loadBalances(), loadAudit()]);
 }
 
 function renderPeople() {
