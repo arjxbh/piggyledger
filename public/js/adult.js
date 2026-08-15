@@ -74,6 +74,12 @@ async function loadUsers() {
 
   const kids = allUsers.filter(u => u.role === 'kid');
 
+  const qrSel = document.getElementById('qrUser');
+  const selectedQrUser = qrSel.value;
+  qrSel.innerHTML = '<option value="">Whole family - PIN/password required</option>' +
+    kids.map(k => `<option value="${k.id}">${escapeHtml(k.name)} - no PIN required</option>`).join('');
+  if (kids.some(k => String(k.id) === selectedQrUser)) qrSel.value = selectedQrUser;
+
   const assignSel = document.getElementById('choreAssign');
   assignSel.innerHTML = `<option value="">Anyone (up for grabs)</option>` +
     kids.map(k => `<option value="${k.id}">${k.name}</option>`).join('');
@@ -472,13 +478,7 @@ function wireUp() {
   });
 
   // role toggle affects the login fields on the add-person form
-  document.getElementById('showTokenBtn').addEventListener('click', () => {
-    const select = document.getElementById('qrUser');
-    const kids = allUsers.filter(user => user.role === 'kid');
-    select.innerHTML = '<option value="">Whole family - PIN/password required</option>' +
-      kids.map(user => `<option value="${user.id}">${escapeHtml(user.name)} - no PIN required</option>`).join('');
-    openTokenModal();
-  });
+  document.getElementById('showTokenBtn').addEventListener('click', openTokenModal);
 
   document.getElementById('changePasswordBtn').addEventListener('click', () => {
     openChangePasswordModal();

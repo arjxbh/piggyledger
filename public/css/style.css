@@ -20,6 +20,23 @@
   --radius: 14px;
 }
 
+:root[data-theme="dark"] {
+  --ink: #F3F1FF;
+  --ink-soft: #BBB7CF;
+  --paper: #161522;
+  --paper-card: #211F30;
+  --line: #403C53;
+  --gold: #F0B65A;
+  --gold-dark: #F4BE68;
+  --gold-bg: #3A2D1B;
+  --mint: #59CDB1;
+  --mint-bg: #183B34;
+  --coral: #FF806C;
+  --coral-bg: #49251F;
+  --sky: #72A9E1;
+  --sky-bg: #1D324A;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -34,6 +51,27 @@ button {
   font-family: inherit;
   cursor: pointer;
 }
+
+.theme-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-card);
+  color: var(--ink);
+  box-shadow: 0 5px 18px rgba(20, 18, 32, 0.18);
+  font-size: 13px;
+  font-weight: 600;
+}
+.theme-toggle:hover { border-color: var(--gold); }
+.theme-toggle:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.theme-toggle-icon { width: 16px; font-size: 17px; line-height: 1; text-align: center; }
 
 a { color: inherit; }
 
@@ -377,6 +415,7 @@ td.amt.neg { color: var(--coral); }
 }
 .pin-pad button {
   background: var(--paper);
+  color: var(--ink);
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 20px;
@@ -470,6 +509,7 @@ td.amt.neg { color: var(--coral); }
 }
 .connect-child-copy { max-width: 620px; }
 .connect-child-label { color: #fff; opacity: 0.88; }
+.connect-child-card label { color: #fff; }
 .connect-child-card h2 { font-size: 25px; }
 .connect-child-card ol {
   margin: 12px 0 0;
@@ -650,12 +690,37 @@ td.amt.neg { color: var(--coral); }
   display: flex; align-items: center; justify-content: center; z-index: 50;
 }
 .modal {
-  background: #fff; border-radius: var(--radius); padding: 24px 26px;
+  background: var(--paper-card); border-radius: var(--radius); padding: 24px 26px;
   width: 360px; max-width: 92vw;
 }
 .hidden { display: none !important; }
 
+:root[data-theme="dark"] input[type="text"],
+:root[data-theme="dark"] input[type="email"],
+:root[data-theme="dark"] input[type="number"],
+:root[data-theme="dark"] input[type="password"],
+:root[data-theme="dark"] input[type="date"],
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea { background: #29263A; }
+:root[data-theme="dark"] .btn-primary { background: #EEEAFB; color: #232338; }
+:root[data-theme="dark"] .btn-primary:hover { background: #DCD6EE; }
+:root[data-theme="dark"] .btn-ghost:hover { background: #2D2A3E; }
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .access-section { background: #11101B; }
+:root[data-theme="dark"] .kid-login-card,
+:root[data-theme="dark"] .ledger-preview,
+:root[data-theme="dark"] .access-form { background: var(--paper-card); }
+:root[data-theme="dark"] .ledger-preview::before { background: #33291E; }
+:root[data-theme="dark"] .benefit-grid article { background: rgba(33, 31, 48, 0.82); }
+:root[data-theme="dark"] .connect-child-card .btn { background: #EEEAFB; color: #232338; }
+:root[data-theme="dark"] .connect-child-card .btn:hover { background: #DCD6EE; }
+:root[data-theme="dark"] .chip.repeatable { background: #352844; color: #C69BEF; }
+:root[data-theme="dark"] .marketing-page {
+  background: radial-gradient(circle at 88% 8%, rgba(240,182,90,0.10), transparent 28rem), var(--paper);
+}
+
 @media (max-width: 600px) {
+  .theme-toggle { right: 12px; bottom: 12px; }
   .form-grid { grid-template-columns: 1fr; }
   .balance-hero { flex-direction: column; align-items: flex-start; gap: 10px; }
   .marketing-nav { padding: 16px 18px; }
