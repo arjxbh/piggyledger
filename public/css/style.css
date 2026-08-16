@@ -770,6 +770,16 @@ td.amt.neg { color: var(--coral); }
 .footer-contribute a { color: var(--ink); font-weight: 700; }
 .footer-contribute a:hover { color: var(--accent-deep); }
 
+.fine-print {
+  max-width: 920px;
+  margin: 18px auto 24px;
+  padding: 0 20px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 /* ---------- Empty state ---------- */
 .empty { text-align: center; padding: 40px 20px; color: var(--ink-soft); }
 .empty .big { font-size: 30px; margin-bottom: 8px; }
