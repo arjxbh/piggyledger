@@ -69,13 +69,20 @@
     <div class="modal kid-money-modal" role="dialog" aria-modal="true" aria-labelledby="moneyRequestTitle">
       <h2 id="moneyRequestTitle">How much?</h2>
       <div class="request-total" id="requestTotal">$0</div>
-      <div class="amount-pad" aria-label="Choose an amount">
-        <button type="button" data-add-amount="100">$1</button>
-        <button type="button" data-add-amount="500">$5</button>
-        <button type="button" data-add-amount="1000">$10</button>
-        <button type="button" data-add-amount="2000">$20</button>
+      <div class="amount-pad" aria-label="Type a dollar amount">
+        <button type="button" data-amount-key="1">1</button>
+        <button type="button" data-amount-key="2">2</button>
+        <button type="button" data-amount-key="3">3</button>
+        <button type="button" data-amount-key="4">4</button>
+        <button type="button" data-amount-key="5">5</button>
+        <button type="button" data-amount-key="6">6</button>
+        <button type="button" data-amount-key="7">7</button>
+        <button type="button" data-amount-key="8">8</button>
+        <button type="button" data-amount-key="9">9</button>
+        <button type="button" data-amount-key=".">.</button>
+        <button type="button" data-amount-key="0">0</button>
+        <button type="button" id="amountDeleteBtn" aria-label="Delete the last number">&#8592;</button>
         <button type="button" class="amount-help" id="amountHelpBtn" aria-label="I do not know the amount">?</button>
-        <button type="button" class="amount-clear" id="amountClearBtn">Start over</button>
       </div>
       <div class="request-message" id="requestMessage" aria-live="polite"></div>
       <button class="btn btn-primary request-send" type="button" id="sendMoneyRequestBtn" disabled>Ask my parent</button>

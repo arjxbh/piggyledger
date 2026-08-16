@@ -1,6 +1,7 @@
 let me = null;
 let requestKind = null;
 let requestAmount = 0;
+let requestAmountInput = '';
 let needsAmountHelp = false;
 
 function money(cents) {
@@ -45,16 +46,44 @@ async function loadBalance() {
 
 function updateRequestAmount() {
   const total = document.getElementById('requestTotal');
-  total.textContent = needsAmountHelp ? '?' : money(requestAmount);
+  total.textContent = needsAmountHelp ? '?' : `$${requestAmountInput || '0'}`;
   document.getElementById('sendMoneyRequestBtn').disabled = requestAmount === 0 && !needsAmountHelp;
   document.getElementById('requestMessage').textContent = needsAmountHelp
     ? 'Your parent will help choose the amount.'
-    : requestAmount > 0 ? 'Tap another number to add more.' : '';
+    : requestAmount > 0 ? 'Tap the numbers, just like your PIN.' : '';
+}
+
+function setRequestAmountFromInput() {
+  const numericAmount = Number(requestAmountInput);
+  requestAmount = Number.isFinite(numericAmount) ? Math.round(numericAmount * 100) : 0;
+  updateRequestAmount();
+}
+
+function enterAmountKey(key) {
+  needsAmountHelp = false;
+  const previousInput = requestAmountInput;
+  if (key === '.') {
+    if (requestAmountInput.includes('.')) return;
+    requestAmountInput = requestAmountInput ? `${requestAmountInput}.` : '0.';
+  } else {
+    const decimalPlaces = requestAmountInput.includes('.')
+      ? requestAmountInput.length - requestAmountInput.indexOf('.') - 1
+      : 0;
+    if (decimalPlaces >= 2) return;
+    if (!requestAmountInput.includes('.') && requestAmountInput.replace(/^0+/, '').length >= 4) return;
+    requestAmountInput = requestAmountInput === '0' ? key : requestAmountInput + key;
+  }
+  if (Number(requestAmountInput) > 1000) {
+    requestAmountInput = previousInput;
+    return;
+  }
+  setRequestAmountFromInput();
 }
 
 function openMoneyRequest(kind) {
   requestKind = kind;
   requestAmount = 0;
+  requestAmountInput = '';
   needsAmountHelp = false;
   document.getElementById('moneyRequestTitle').textContent = kind === 'deposit'
     ? 'How much goes in?'
@@ -159,24 +188,21 @@ document.querySelectorAll('[data-money-kind]').forEach(button => {
   button.addEventListener('click', () => openMoneyRequest(button.dataset.moneyKind));
 });
 
-document.querySelectorAll('[data-add-amount]').forEach(button => {
-  button.addEventListener('click', () => {
-    needsAmountHelp = false;
-    requestAmount += Number(button.dataset.addAmount);
-    updateRequestAmount();
-  });
+document.querySelectorAll('[data-amount-key]').forEach(button => {
+  button.addEventListener('click', () => enterAmountKey(button.dataset.amountKey));
 });
 
 document.getElementById('amountHelpBtn').addEventListener('click', () => {
   requestAmount = 0;
+  requestAmountInput = '';
   needsAmountHelp = true;
   updateRequestAmount();
 });
 
-document.getElementById('amountClearBtn').addEventListener('click', () => {
-  requestAmount = 0;
+document.getElementById('amountDeleteBtn').addEventListener('click', () => {
   needsAmountHelp = false;
-  updateRequestAmount();
+  requestAmountInput = requestAmountInput.slice(0, -1);
+  setRequestAmountFromInput();
 });
 
 document.getElementById('cancelMoneyRequestBtn').addEventListener('click', () => {

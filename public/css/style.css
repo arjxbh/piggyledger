@@ -191,8 +191,13 @@ h2 { font-size: 21px; }
   font-weight: 800;
 }
 .amount-pad button:hover { border-color: var(--gold); }
-.amount-pad .amount-help { background: var(--gold-bg, #FCF1DD); color: var(--gold-dark); font-size: 44px; }
-.amount-pad .amount-clear { font-family: var(--body); font-size: 15px; }
+.amount-pad .amount-help {
+  grid-column: 1 / -1;
+  min-height: 64px;
+  background: var(--gold-bg, #FCF1DD);
+  color: var(--gold-dark);
+  font-size: 40px;
+}
 .request-message { min-height: 24px; margin: 14px 0 4px; color: var(--ink-soft); font-size: 16px; }
 .request-send { width: 100%; justify-content: center; padding: 16px 20px; font-size: 19px; }
 
@@ -811,7 +816,8 @@ td.amt.neg { color: var(--coral); }
   .money-action-grid { gap: 10px; }
   .money-action { min-height: 155px; padding: 14px 8px; font-size: 19px; }
   .money-action svg { width: 88px; height: 74px; }
-  .amount-pad { grid-template-columns: repeat(2, 1fr); }
+  .amount-pad { gap: 9px; }
+  .amount-pad button { min-height: 66px; }
   .request-card { grid-template-columns: 48px 1fr; }
   .request-kind-icon { width: 46px; height: 46px; }
   .request-actions { grid-column: 1 / -1; flex-wrap: wrap; }

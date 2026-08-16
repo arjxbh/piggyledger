@@ -346,6 +346,7 @@ test('kids create money requests that notify adults and appear in the ledger', a
   assert.equal(data.ledger.at(-1).moneyRequestId, result.body.id);
   assert.equal(data.ledger.at(-1).amount, 0);
   assert.deepEqual(sentMoneyRequests.map(message => message.to), ['parent@example.com']);
+  assert.equal(sentMoneyRequests[0].request.kidName, 'Sam');
 
   const own = await kid.request('/api/money-requests');
   assert.equal(own.body.length, 1);
