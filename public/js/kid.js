@@ -35,7 +35,7 @@ async function init() {
   document.getElementById('whoName').textContent = user.name;
   document.getElementById('greeting').textContent = `Hi, ${user.name}!`;
 
-  await Promise.all([loadBalance(), loadChores(), loadLedger()]);
+  await Promise.all([loadBalance(), loadChores(), loadLedger(), loadLeaderboard()]);
 }
 
 async function loadBalance() {
@@ -176,6 +176,28 @@ async function loadLedger() {
       <td class="amt ${e.amount >= 0 ? 'pos' : 'neg'}">${e.amount >= 0 ? '+' : ''}${money(e.amount)}</td>
     </tr>
   `).join('');
+}
+
+function renderLeaderboard(id, entries, value, formatValue) {
+  const list = document.getElementById(id);
+  list.innerHTML = entries.map(entry => `
+    <li class="leaderboard-row ${entry.kidId === me.id ? 'current' : ''}">
+      <span class="leaderboard-rank">${entry.rank}</span>
+      <span class="leaderboard-name">${entry.name}${entry.kidId === me.id ? ' (you)' : ''}</span>
+      <strong>${formatValue(entry[value])}</strong>
+    </li>
+  `).join('');
+}
+
+async function loadLeaderboard() {
+  const res = await fetchWithToken('/api/leaderboard');
+  if (!res.ok) {
+    document.getElementById('leaderboardMessage').textContent = 'Rankings are not available right now.';
+    return;
+  }
+  const rankings = await res.json();
+  renderLeaderboard('earnedLeaderboard', rankings.earned, 'amount', money);
+  renderLeaderboard('choresLeaderboard', rankings.chores, 'count', count => `${count} ${count === 1 ? 'chore' : 'chores'}`);
 }
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {

@@ -174,7 +174,11 @@ h2 { font-size: 21px; }
 .money-action.withdrawal { background: var(--sky-bg); border-color: var(--sky); }
 .money-action:hover { transform: translateY(-2px); }
 .money-action:focus-visible { outline: 4px solid var(--gold); outline-offset: 3px; }
-.money-action svg { width: 112px; height: 92px; fill: currentColor; }
+.money-action svg { width: 112px; height: 92px; fill: none; stroke: currentColor; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.money-action .wallet { fill: currentColor; stroke: none; opacity: 0.16; }
+.money-action .wallet-flap { fill: none; }
+.money-action .wallet-slot { fill: currentColor; stroke: none; opacity: 0.28; }
+.money-action .coin { fill: currentColor; stroke: none; }
 .money-action .arrow { fill: none; stroke: currentColor; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
 .kid-money-modal { width: 500px; text-align: center; }
 .kid-money-modal h2 { font-size: 32px; }
@@ -314,6 +318,33 @@ h2 { font-size: 21px; }
   justify-content: space-between;
   margin-bottom: 14px;
 }
+
+/* ---------- Family rankings ---------- */
+
+.leaderboard-section { margin: 30px 0 26px; }
+.leaderboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.leaderboard-card {
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+.leaderboard-card h3 { font-size: 18px; margin-bottom: 12px; }
+.leaderboard-list { list-style: none; padding: 0; margin: 0; }
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+.leaderboard-row.current { color: var(--gold-dark); font-weight: 700; }
+.leaderboard-rank { color: var(--ink-soft); font-family: var(--mono); font-size: 12px; }
+.leaderboard-name { min-width: 0; overflow-wrap: anywhere; }
+.leaderboard-row strong { font-family: var(--mono); white-space: nowrap; }
+.leaderboard-message { margin-top: 10px; }
 
 /* ---------- Tabs (adult view) ---------- */
 
@@ -820,6 +851,8 @@ td.amt.neg { color: var(--coral); }
 }
 
 @media (max-width: 600px) {
+  .leaderboard-grid { grid-template-columns: 1fr; }
+
   .theme-toggle { right: 12px; bottom: 12px; }
   .form-grid { grid-template-columns: 1fr; }
   .balance-hero { flex-direction: column; align-items: flex-start; gap: 10px; }

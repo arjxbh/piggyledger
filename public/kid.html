@@ -21,15 +21,21 @@
       <div class="money-action-grid">
         <button class="money-action deposit" type="button" data-money-kind="deposit">
           <svg viewBox="0 0 120 100" aria-hidden="true">
-            <path d="M24 45h72v43H24zM18 39h84v12H18zM45 18h30v21H45z"/>
-            <path class="arrow" d="M60 5v25m-10-10 10 10 10-10"/>
+            <path class="wallet" d="M21 30h67a9 9 0 0 1 9 9v39a8 8 0 0 1-8 8H21a8 8 0 0 1-8-8V38a8 8 0 0 1 8-8Z"/>
+            <path class="wallet-flap" d="M17 30V23a8 8 0 0 1 8-8h48a8 8 0 0 1 8 8v7"/>
+            <path class="wallet-slot" d="M72 48h25v18H72a9 9 0 0 1 0-18Z"/>
+            <circle class="coin" cx="82" cy="57" r="3"/>
+            <path class="arrow" d="M45 60V20m-11 11 11-11 11 11"/>
           </svg>
           <span>Put money in</span>
         </button>
         <button class="money-action withdrawal" type="button" data-money-kind="withdrawal">
           <svg viewBox="0 0 120 100" aria-hidden="true">
-            <path d="M24 45h72v43H24zM18 39h84v12H18zM45 18h30v21H45z"/>
-            <path class="arrow" d="M60 31V6M50 16 60 6l10 10"/>
+            <path class="wallet" d="M21 30h67a9 9 0 0 1 9 9v39a8 8 0 0 1-8 8H21a8 8 0 0 1-8-8V38a8 8 0 0 1 8-8Z"/>
+            <path class="wallet-flap" d="M17 30V23a8 8 0 0 1 8-8h48a8 8 0 0 1 8 8v7"/>
+            <path class="wallet-slot" d="M72 48h25v18H72a9 9 0 0 1 0-18Z"/>
+            <circle class="coin" cx="82" cy="57" r="3"/>
+            <path class="arrow" d="M45 20v40m-11-11 11 11 11-11"/>
           </svg>
           <span>Take money out</span>
         </button>
@@ -53,6 +59,26 @@
       <h2>My chores</h2>
     </div>
     <div class="ticket-list" id="choreList"></div>
+
+    <section class="leaderboard-section" aria-labelledby="leaderboardTitle">
+      <div class="section-head">
+        <div>
+          <h2 id="leaderboardTitle">Family rankings</h2>
+          <div class="muted">See how everyone is doing</div>
+        </div>
+      </div>
+      <div class="leaderboard-grid" id="leaderboardGrid">
+        <div class="leaderboard-card">
+          <h3>Most money earned</h3>
+          <ol class="leaderboard-list" id="earnedLeaderboard"></ol>
+        </div>
+        <div class="leaderboard-card">
+          <h3>Most chores completed</h3>
+          <ol class="leaderboard-list" id="choresLeaderboard"></ol>
+        </div>
+      </div>
+      <div class="leaderboard-message muted" id="leaderboardMessage" aria-live="polite"></div>
+    </section>
 
     <div class="card" style="margin-top:26px;">
       <div class="section-head">

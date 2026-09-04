@@ -725,6 +725,30 @@ app.get('/api/balances', requireAdult, async (req, res) => {
   res.json(kids.map(k => ({ kidId: k.id, name: k.name, balance: balanceForKid(data, k.id) })));
 });
 
+app.get('/api/leaderboard', requireLogin, async (req, res) => {
+  const data = await db.read(req.familyId);
+  const kids = data.users.filter(u => u.role === 'kid');
+  const stats = new Map(kids.map(kid => [kid.id, { kidId: kid.id, name: kid.name, earned: 0, choresCompleted: 0 }]));
+
+  data.ledger
+    .filter(entry => entry.type === 'chore' && entry.amount > 0 && !entry.reversed)
+    .forEach(entry => {
+      const stat = stats.get(entry.kidId);
+      if (!stat) return;
+      stat.earned += entry.amount;
+      stat.choresCompleted += 1;
+    });
+
+  const rank = entries => entries.map((entry, index) => ({ ...entry, rank: index + 1 }));
+  const byEarned = [...stats.values()].sort((a, b) => b.earned - a.earned || a.name.localeCompare(b.name));
+  const byChores = [...stats.values()].sort((a, b) => b.choresCompleted - a.choresCompleted || a.name.localeCompare(b.name));
+
+  res.json({
+    earned: rank(byEarned).map(({ kidId, name, earned, rank: position }) => ({ kidId, name, amount: earned, rank: position })),
+    chores: rank(byChores).map(({ kidId, name, choresCompleted, rank: position }) => ({ kidId, name, count: choresCompleted, rank: position }))
+  });
+});
+
 // Manual adjustment (allowance top-up, penalty, correction, etc.)
 app.post('/api/ledger/adjust', requireAdult, async (req, res) => {
   const { kidId, amount, reason } = req.body;

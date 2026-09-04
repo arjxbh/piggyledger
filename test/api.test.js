@@ -461,6 +461,26 @@ test('GET /api/balances is adult-only and summarizes every kid', async () => {
   ]);
 });
 
+test('GET /api/leaderboard ranks kids by chore earnings and completions', async () => {
+  data.ledger.push(
+    { id: 16, kidId: 2, amount: 3, type: 'chore', choreId: 11, reversed: false },
+    { id: 17, kidId: 3, amount: 4, type: 'chore', choreId: 12, reversed: false },
+    { id: 18, kidId: 3, amount: 4, type: 'chore', choreId: 12, reversed: true },
+    { id: 19, kidId: 2, amount: -3, type: 'chore', choreId: 11, reversed: false }
+  );
+  const kid = await kidClient();
+  const result = await kid.request('/api/leaderboard');
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.earned, [
+    { kidId: 3, name: 'Jo', amount: 4, rank: 1 },
+    { kidId: 2, name: 'Sam', amount: 3, rank: 2 }
+  ]);
+  assert.deepEqual(result.body.chores, [
+    { kidId: 3, name: 'Jo', count: 1, rank: 1 },
+    { kidId: 2, name: 'Sam', count: 1, rank: 2 }
+  ]);
+});
+
 test('POST /api/ledger/adjust validates and records manual changes', async () => {
   const client = await adultClient();
   assert.equal((await client.request('/api/ledger/adjust', { method: 'POST', body: { kidId: 2, amount: 0, reason: '' } })).status, 400);
