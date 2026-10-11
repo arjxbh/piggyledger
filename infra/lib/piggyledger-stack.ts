@@ -99,7 +99,9 @@ export class PiggyLedgerStack extends cdk.Stack {
       'curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -',
       'yum install -y nodejs --disablerepo=amazonlinux --disablerepo=kernel-livepatch',
       'mkdir -p /opt/piggyledger',
-      `aws s3 cp "s3://${appAsset.s3BucketName}/${appAsset.s3ObjectKey}" /tmp/piggyledger.tgz`,
+      // Keep first-boot code stable during application releases. Changing EC2
+      // UserData can stop/start the shared production host even without replacement.
+      'aws s3 cp "s3://cdk-hnb659fds-assets-294281109519-us-east-1/0727b992a84ad49fd24d3d99659b5924da421268cfa48665413080cf543dc072.zip" /tmp/piggyledger.tgz',
       'unzip -q /tmp/piggyledger.tgz -d /opt/piggyledger',
       'cd /opt/piggyledger',
       'npm install --omit=dev',
@@ -137,6 +139,7 @@ export class PiggyLedgerStack extends cdk.Stack {
       'systemctl daemon-reload',
       'systemctl enable --now piggyledger',
       "cat > /etc/caddy/Caddyfile <<'EOF'",
+      'import /etc/caddy/conf.d/*.caddy',
       'www.piggyledger.net {',
       '    redir https://piggyledger.net{uri} permanent',
       '}',
@@ -153,8 +156,9 @@ export class PiggyLedgerStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       securityGroup,
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
-      machineImage: ec2.MachineImage.latestAmazonLinux2023({
-        cpuType: ec2.AmazonLinuxCpuType.X86_64,
+      // Reviewed production image. Never resolve a moving latest-image parameter.
+      machineImage: ec2.MachineImage.genericLinux({
+        'us-east-1': 'ami-03c3da4cfa8e8943a',
       }),
       keyPair: props.keyName
         ? ec2.KeyPair.fromKeyPairName(this, 'KeyPair', props.keyName)
@@ -208,7 +212,10 @@ export class PiggyLedgerStack extends cdk.Stack {
           `SESSION_SECRET_PARAMETER="${sessionSecretParameter}"`,
           'if ! aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" >/dev/null 2>&1; then aws ssm put-parameter --name "$SESSION_SECRET_PARAMETER" --type SecureString --tier Standard --value "$(openssl rand -hex 32)"; fi',
           `cat > /opt/piggyledger/.env <<EOF\nNODE_ENV=production\nSESSION_SECRET=$(aws ssm get-parameter --name "$SESSION_SECRET_PARAMETER" --with-decryption --query Parameter.Value --output text)\nDYNAMODB_TABLE_NAME=${table.tableName}\nMAILJET_FROM_EMAIL=no-reply@piggyledger.net\nMAILJET_SECRET_ID=${mailjetSecret.secretName}\nAPP_BASE_URL=https://piggyledger.net\nPORT=3000\nEOF`,
+          'exec 9>/run/lock/shared-caddy-deploy.lock',
+          'flock -w 300 9',
           `cat > /etc/caddy/Caddyfile <<'EOF'
+import /etc/caddy/conf.d/*.caddy
 www.piggyledger.net {
     redir https://piggyledger.net{uri} permanent
 }
@@ -219,6 +226,7 @@ piggyledger.net {
 EOF`,
           'caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile',
           'systemctl reload caddy',
+          'flock -u 9',
           'chown -R ec2-user:ec2-user /opt/piggyledger',
           'chmod 600 /opt/piggyledger/.env',
           'systemctl restart piggyledger',
@@ -233,6 +241,11 @@ EOF`,
     new cdk.CfnOutput(this, 'ElasticIpOutput', {
       value: elasticIp.ref,
       description: 'Elastic IP address allocated to the EC2 instance',
+    });
+
+    new cdk.CfnOutput(this, 'ProductionImageId', {
+      value: 'ami-03c3da4cfa8e8943a',
+      description: 'Pinned production AMI - changes require a reviewed host migration',
     });
 
     new cdk.CfnOutput(this, 'AppUrl', {

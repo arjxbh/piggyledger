@@ -29,6 +29,27 @@ export KEY_PAIR_NAME=your-existing-key-pair  # optional
 npm run deploy
 ```
 
+Production deployment now prepares a CloudFormation change set, rejects every
+replacement/removal and every shared-host modification, and executes only that
+exact change set. Only the application association, its asset-read policy, and
+CDK metadata can change through this path. It checks the installed stack policy,
+all three SSM targets, and all three public sites before deployment, then checks
+the host ID and public sites afterward. Only `--profile NAME` is accepted as an
+optional deployment argument. Do not bypass this path with direct CDK deployment.
+
+The production AMI is pinned to `ami-03c3da4cfa8e8943a`. First-boot application
+asset selection is also frozen to preserve the live UserData exactly; current
+application releases use the SSM association's asset. Updating the image or boot
+script is a separate, explicitly approved shared-host migration. An AWS-side
+stack policy in `production-stack-policy.json` blocks replacement/deletion of
+the host, networking, instance role, and database even through direct CDK.
+CloudFormation stack policies do not prevent direct EC2 API calls or stack
+deletion; the mandatory production rules in `../AGENTS.md` cover those actions.
+
+Run `npm test` in this directory for the production deployment gate tests.
+The deployment guard intentionally refuses infrastructure changes; prepare and
+review those separately with all dependent sites and data preservation included.
+
 The stack keeps the current low-cost single-instance topology: no NAT gateway,
 one public subnet, one Elastic IP, a `t3.micro`, and DynamoDB on-demand billing.
 Caddy terminates HTTPS for `piggyledger.net`.

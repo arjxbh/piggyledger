@@ -99,9 +99,24 @@ async function loadChores() {
 }
 
 async function loadBalances() {
-  const res = await fetchWithToken('/api/balances');
-  const balances = await res.json();
+  let balances;
+  try {
+    const res = await fetchWithToken('/api/balances');
+    if (!res.ok) throw new Error('Unable to load balances');
+    balances = await res.json();
+  } catch (error) {
+    document.getElementById('balanceChart').textContent = 'Unable to load balances. Open this tab again to retry.';
+    document.getElementById('balanceCashGrid').textContent = '';
+    return;
+  }
   renderKidGrid(balances);
+  document.getElementById('balanceChart').innerHTML = MoneyVisual.balanceChart(balances);
+  document.getElementById('balanceCashGrid').innerHTML = balances.map(b => `
+    <article class="card cash-child">
+      <div class="cash-child-heading"><h3>${escapeHtml(b.name)}</h3><strong>${money(b.balance)}</strong></div>
+      ${MoneyVisual.cashDiagram(b.balance)}
+    </article>
+  `).join('');
 }
 
 async function loadAudit(params = {}) {
@@ -193,12 +208,12 @@ function renderKidGrid(balances) {
     return;
   }
   grid.innerHTML = balances.map(b => `
-    <div class="kid-card" data-kid="${b.kidId}">
+    <button type="button" class="kid-card" data-kid="${b.kidId}" aria-label="Adjust ${escapeHtml(b.name)}'s balance">
       <div class="avatar" style="background:${colorFor(b.name)}">${initials(b.name)}</div>
       <div class="name" style="margin-top:8px;">${b.name}</div>
       <div class="bal">${money(b.balance)}</div>
       <div class="muted" style="font-size:12px; margin-top:4px;">Tap to adjust</div>
-    </div>
+    </button>
   `).join('');
   grid.querySelectorAll('.kid-card').forEach(card => {
     card.addEventListener('click', () => openAdjustModal(Number(card.dataset.kid)));
@@ -450,6 +465,7 @@ function wireUp() {
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+      if (tab.dataset.tab === 'compare' || tab.dataset.tab === 'balances') loadBalances();
     });
   });
 
@@ -611,4 +627,7 @@ function wireUp() {
   });
 }
 
-init();
+init().catch(() => {
+  const list = document.getElementById('choreList');
+  list.innerHTML = '<div class="empty" role="alert">Unable to load your dashboard. Check your connection, then reload this page.</div>';
+});

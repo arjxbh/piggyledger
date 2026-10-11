@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Piggy Ledger</title>
 <link rel="icon" type="image/png" href="/images/piggy-ledger-logo.png">
 <script src="/js/theme.js"></script>
+<script src="/js/ui.js" defer></script>
 <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
+<body class="login-page">
   <div class="login-wrap">
     <div class="login-title"><img class="brand-logo" src="/images/piggy-ledger-logo.png" alt=""> Piggy Ledger</div>
     <div class="login-sub" id="subtitle">Ask a parent for your QR code.</div>
@@ -32,7 +33,7 @@
         <div class="form-actions">
           <button class="btn btn-ghost" id="emailAccessBtn">Send me a link</button>
         </div>
-        <div class="muted" id="emailAccessStatus" aria-live="polite"></div>
+        <div class="status-message" id="emailAccessStatus" aria-live="polite"></div>
       </section>
 
       <div class="signup-prompt">
@@ -55,7 +56,7 @@
         <div class="pin-display" id="pinDisplay"></div>
         <div class="pin-pad" id="pinPad"></div>
       </div>
-      <div class="error-msg" id="errorMsg"></div>
+      <div class="error-msg" role="alert" id="errorMsg"></div>
       <button class="back-link" id="backBtn">&larr; choose a different profile</button>
     </div>
   </div>
@@ -63,7 +64,7 @@
   <div class="modal-backdrop hidden" id="scanModal">
     <div class="modal">
       <h2>Scan your QR code</h2>
-      <video id="qrVideo" width="320" height="240" autoplay muted playsinline style="width:100%; border-radius:12px; background:#000;"></video>
+      <video id="qrVideo" width="320" height="240" autoplay muted playsinline class="qr-video"></video>
       <div class="form-actions">
         <button class="btn btn-primary" id="stopScanBtn">Stop scan</button>
         <button class="btn btn-ghost" id="cancelScanBtn">Cancel</button>

@@ -6,9 +6,11 @@
 <title>Piggy Ledger — Adult</title>
 <link rel="icon" type="image/png" href="/images/piggy-ledger-logo.png">
 <script src="/js/theme.js"></script>
+<script src="/js/ui.js" defer></script>
 <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
+<body class="adult-page">
+  <a class="skip-link" href="#mainContent">Skip to content</a>
   <div class="topbar">
     <div class="brand"><img class="brand-logo" src="/images/piggy-ledger-logo.png" alt=""> Piggy Ledger</div>
     <div class="who">
@@ -18,9 +20,9 @@
     </div>
   </div>
 
-  <main>
+  <main id="mainContent">
     <h1>Family dashboard</h1>
-    <div class="muted" style="margin-bottom:20px;">Manage chores, balances, and the audit trail</div>
+    <div class="muted" style="margin-bottom:20px;">A little effort. A growing sense of independence.</div>
 
     <div class="connect-child-card">
       <div class="connect-child-copy">
@@ -42,6 +44,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="chores">Chores</button>
       <button class="tab" data-tab="balances">Balances</button>
+      <button class="tab" data-tab="compare">Compare balances</button>
       <button class="tab" data-tab="requests">Money requests <span class="request-count hidden" id="requestCount">0</span></button>
       <button class="tab" data-tab="audit">Audit trail</button>
       <button class="tab" data-tab="people">People</button>
@@ -77,13 +80,24 @@
       </div>
 
       <div class="section-head"><h2>All chores</h2></div>
-      <div class="ticket-list" id="choreList"></div>
+      <div class="ticket-list" id="choreList" aria-live="polite"><div class="empty">Loading chores…</div></div>
     </div>
 
     <!-- BALANCES -->
     <div class="tab-panel" id="panel-balances">
       <div class="section-head"><h2>Piggy banks</h2></div>
       <div class="kid-grid" id="kidGrid"></div>
+    </div>
+
+    <div class="tab-panel" id="panel-compare">
+      <section class="card" aria-labelledby="balanceChartTitle">
+        <div class="section-head"><div><h2 id="balanceChartTitle">Balances side by side</h2><p class="muted">What each child has right now.</p></div></div>
+        <div id="balanceChart" class="balance-chart" aria-live="polite"></div>
+      </section>
+      <section class="cash-comparison" aria-labelledby="cashComparisonTitle">
+        <div class="section-head"><div><h2 id="cashComparisonTitle">Count the money</h2><p class="muted">One way to make each balance with US bills and coins.</p></div></div>
+        <div id="balanceCashGrid" class="cash-grid" aria-live="polite"></div>
+      </section>
     </div>
 
     <!-- MONEY REQUESTS -->
@@ -120,10 +134,10 @@
           <button class="btn btn-ghost" id="filterBtn">Apply</button>
           <button class="btn btn-ghost" id="filterClearBtn">Clear</button>
         </div>
-        <table>
+        <div class="table-scroll" role="region" aria-label="Ledger history" tabindex="0"><table>
           <thead><tr><th>Date</th><th>Kid</th><th>Reason</th><th>By</th><th style="text-align:right;">Amount</th></tr></thead>
           <tbody id="auditBody"></tbody>
-        </table>
+        </table></div>
       </div>
     </div>
 
@@ -244,6 +258,7 @@
   <p class="fine-print">Piggy Ledger is a record-keeping tool, not a financial institution. Parents and guardians are solely responsible for the custody, handling, and transfer of any currency or other assets represented in the application.</p>
 
   <script src="/js/qrcode.min.js"></script>
+  <script src="/js/money-visual.js"></script>
   <script src="/js/adult.js"></script>
 </body>
 </html>

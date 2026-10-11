@@ -39,9 +39,16 @@ async function init() {
 }
 
 async function loadBalance() {
-  const res = await fetchWithToken(`/api/balance/${me.id}`);
-  const data = await res.json();
-  document.getElementById('balanceAmt').textContent = money(data.balance);
+  try {
+    const res = await fetchWithToken(`/api/balance/${me.id}`);
+    if (!res.ok) throw new Error('Unable to load balance');
+    const data = await res.json();
+    document.getElementById('balanceAmt').textContent = money(data.balance);
+    document.getElementById('myCashDiagram').innerHTML = MoneyVisual.cashDiagram(data.balance);
+  } catch (error) {
+    document.getElementById('balanceAmt').textContent = '—';
+    document.getElementById('myCashDiagram').textContent = 'Unable to load your money. Refresh the page to try again.';
+  }
 }
 
 function updateRequestAmount() {
@@ -233,4 +240,7 @@ document.getElementById('cancelMoneyRequestBtn').addEventListener('click', () =>
 
 document.getElementById('sendMoneyRequestBtn').addEventListener('click', sendMoneyRequest);
 
-init();
+init().catch(() => {
+  const list = document.getElementById('choreList');
+  list.innerHTML = '<div class="empty" role="alert">Unable to load your dashboard. Check your connection, then reload this page.</div>';
+});

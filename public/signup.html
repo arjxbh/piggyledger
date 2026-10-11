@@ -6,9 +6,10 @@
 <title>Create a family - Piggy Ledger</title>
 <link rel="icon" type="image/png" href="/images/piggy-ledger-logo.png">
 <script src="/js/theme.js"></script>
+<script src="/js/ui.js" defer></script>
 <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
+<body class="signup-page">
   <div class="login-wrap">
     <div class="login-title"><img class="brand-logo" src="/images/piggy-ledger-logo.png" alt=""> Piggy Ledger</div>
     <div class="login-sub">Create your family</div>
@@ -33,8 +34,8 @@
         <button class="btn btn-primary" id="signupBtn">Create family</button>
         <a class="btn btn-ghost" href="/">Back to home</a>
       </div>
-      <div class="error-msg" id="signupError"></div>
-      <div class="muted" id="signupStatus"></div>
+      <div class="error-msg" role="alert" id="signupError"></div>
+      <div class="status-message" id="signupStatus" aria-live="polite"></div>
     </div>
   </div>
   <p class="fine-print">Piggy Ledger is a record-keeping tool, not a financial institution. Parents and guardians are solely responsible for the custody, handling, and transfer of any currency or other assets represented in the application.</p>

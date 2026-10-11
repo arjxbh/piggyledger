@@ -11,6 +11,8 @@ let currentUser = null;
 let pin = '';
 let qrStream = null;
 let qrScanning = false;
+let qrScanGeneration = 0;
+let loginRedirecting = false;
 
 function getAccessToken() {
   return localStorage.getItem('piggyledger_access_token');
@@ -66,10 +68,16 @@ async function handleNewAccessToken(token) {
   }
 
   if (incoming.loginMode === 'passwordless') {
-    const response = await fetch('/api/session/exchange', {
-      method: 'POST',
-      headers: { 'X-Access-Token': token }
-    });
+    let response;
+    try {
+      response = await fetch('/api/session/exchange', {
+        method: 'POST',
+        headers: { 'X-Access-Token': token }
+      });
+    } catch (error) {
+      setLoginSubtitle('Unable to sign in. Check your connection and scan again.');
+      return false;
+    }
     if (!response.ok) {
       setAccessControls(false);
       setLoginSubtitle('That sign-in link could not be used. Ask for a new one.');
@@ -77,6 +85,7 @@ async function handleNewAccessToken(token) {
     }
     const { user, sessionToken } = await response.json();
     localStorage.setItem('piggyledger_access_token', sessionToken);
+    loginRedirecting = true;
     location.replace(user.role === 'adult' ? '/adult.html' : '/kid.html');
     return true;
   }
@@ -146,7 +155,8 @@ async function init() {
   if (urlToken) {
     history.replaceState(null, '', window.location.pathname);
     const accepted = await handleNewAccessToken(urlToken);
-    if (accepted && !document.getElementById('loginEntry').classList.contains('hidden')) return;
+    if (accepted && !loginRedirecting) await loadProfiles();
+    return;
   } else {
     updateAccessTokenStatus();
   }
@@ -228,29 +238,40 @@ async function attemptLogin(secret) {
   }
 }
 
-function startQrScan() {
+async function startQrScan() {
+  if (qrScanning) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setLoginSubtitle('Camera scanning is unavailable. Open the sign-in link with your tablet’s Camera app, or ask a parent to share the link.');
+    return;
+  }
   const video = document.getElementById('qrVideo');
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   if (!context) return;
 
   qrScanning = true;
+  const generation = ++qrScanGeneration;
   document.getElementById('scanModal').classList.remove('hidden');
 
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-    .then(stream => {
-      qrStream = stream;
-      video.srcObject = stream;
-      video.play();
-      scanFrame();
-    })
-    .catch(() => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    if (!qrScanning || generation !== qrScanGeneration) {
+      stream.getTracks().forEach(track => track.stop());
+      return;
+    }
+    qrStream = stream;
+    video.srcObject = stream;
+    await video.play();
+    scanFrame();
+  } catch (error) {
+    if (generation === qrScanGeneration) {
       alert('The camera did not work. Ask a parent for help.');
       stopQrScan();
-    });
+    }
+  }
 
   function scanFrame() {
-    if (!qrScanning) return;
+    if (!qrScanning || generation !== qrScanGeneration) return;
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -264,7 +285,7 @@ function startQrScan() {
           if (accessToken) {
             stopQrScan();
             handleNewAccessToken(accessToken).then(accepted => {
-              if (accepted) loadProfiles();
+              if (accepted && !loginRedirecting) loadProfiles();
             });
             return;
           }
@@ -279,6 +300,7 @@ function startQrScan() {
 
 function stopQrScan() {
   qrScanning = false;
+  qrScanGeneration++;
   const video = document.getElementById('qrVideo');
   if (qrStream) {
     qrStream.getTracks().forEach(track => track.stop());

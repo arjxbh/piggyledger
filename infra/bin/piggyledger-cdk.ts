@@ -7,6 +7,7 @@ import * as path from 'path';
 const app = new cdk.App();
 
 new PiggyLedgerStack(app, 'PiggyLedgerStack', {
+  terminationProtection: true,
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: process.env.CDK_DEFAULT_REGION || 'us-east-1',

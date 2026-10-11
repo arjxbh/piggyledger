@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test --test-concurrency=1",
+    "test": "node --test --test-concurrency=1 test/*.test.js infra/test/*.test.cjs",
     "build": "npm test && npm --prefix infra run build",
     "deploy": "npm --prefix infra run deploy",
     "migrate:ddb": "node scripts/migrate-json-to-dynamodb.js"
