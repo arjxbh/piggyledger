@@ -328,12 +328,13 @@ document.getElementById('scanTokenBtn').addEventListener('click', () => startQrS
 document.getElementById('stopScanBtn').addEventListener('click', () => stopQrScan());
 document.getElementById('cancelScanBtn').addEventListener('click', () => stopQrScan());
 const adultMethod = document.getElementById('adultMethod');
+const passwordMethod = document.getElementById('passwordMethod');
 const adultPassword = document.getElementById('adultPassword');
 const adultSubmit = document.getElementById('emailAccessBtn');
 const adultStatus = document.getElementById('emailAccessStatus');
 
 adultMethod.addEventListener('change', () => {
-  const usePassword = adultMethod.value === 'password';
+  const usePassword = passwordMethod.checked;
   document.getElementById('adultPasswordRow').classList.toggle('hidden', !usePassword);
   adultPassword.disabled = !usePassword;
   adultPassword.value = '';
@@ -345,7 +346,7 @@ document.getElementById('adultLoginForm').addEventListener('submit', async event
   event.preventDefault();
   if (adultSubmit.disabled) return;
   const email = document.getElementById('accessEmail').value.trim();
-  const usePassword = adultMethod.value === 'password';
+  const usePassword = passwordMethod.checked;
   const payload = usePassword ? { email, password: adultPassword.value } : { email };
   adultSubmit.disabled = true;
   adultMethod.disabled = true;

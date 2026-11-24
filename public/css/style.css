@@ -368,7 +368,7 @@ label {
   margin-bottom:7px;
 }
 
-input:not([type=checkbox]),select,textarea {
+input:not([type=checkbox]):not([type=radio]),select,textarea {
   width:100%;
   min-height:48px;
   padding:11px 13px;
@@ -992,6 +992,32 @@ tbody tr:last-child td {
   padding:26px 14px 0;
   margin-top:22px;
   border-top:1px solid var(--line);
+}
+
+.login-methods {
+  margin:0 0 18px;
+  padding:0;
+  border:0;
+}
+
+.login-methods legend {
+  padding:0;
+  font-size:14px;
+  font-weight:700;
+}
+
+.login-methods label {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:44px;
+  margin:0 16px 0 0;
+  cursor:pointer;
+}
+
+.login-methods input {
+  margin:0;
+  accent-color:var(--accent);
 }
 
 .adult-login-card h2 {

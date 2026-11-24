@@ -26,13 +26,11 @@
       <section class="adult-login-card" id="emailAccessCard">
         <h2>Adult sign-in</h2>
         <form id="adultLoginForm" method="post">
-          <div class="form-row">
-            <label for="adultMethod">Sign in with</label>
-            <select id="adultMethod">
-              <option value="link">Email link</option>
-              <option value="password">Password</option>
-            </select>
-          </div>
+          <fieldset id="adultMethod" class="login-methods">
+            <legend>Sign in with</legend>
+            <label><input type="radio" name="adultMethod" value="link" checked> Email link</label>
+            <label><input type="radio" name="adultMethod" value="password" id="passwordMethod"> Password</label>
+          </fieldset>
           <div class="form-row">
             <label for="accessEmail">Your email</label>
             <input type="email" id="accessEmail" autocomplete="username" placeholder="you@example.com" required>

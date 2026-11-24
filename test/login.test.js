@@ -17,6 +17,7 @@ function browser({ search = '', fetch, getUserMedia, decode } = {}) {
     getElementById(id) {
       if (!elements.has(id)) {
         const classes = new Set();
+        const handlers = new Map();
         elements.set(id, {
           textContent: '', innerHTML: '',
           classList: {
@@ -24,7 +25,9 @@ function browser({ search = '', fetch, getUserMedia, decode } = {}) {
             contains: name => classes.has(name),
             toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name)
           },
-          addEventListener() {}, querySelectorAll: () => [],
+          addEventListener: (type, handler) => handlers.set(type, handler),
+          dispatch: type => handlers.get(type)({ preventDefault() {} }),
+          querySelectorAll: () => [],
           play: async () => {}, pause() {},
           readyState: 4, HAVE_ENOUGH_DATA: 4, videoWidth: 320, videoHeight: 240
         });
@@ -128,4 +131,27 @@ test('tablet video playback rejection closes the camera and reports failure', as
   await page.run('startQrScan()');
   assert.equal(stopped, 1);
   assert.equal(page.alerts.length, 1);
+});
+
+test('adult method selection toggles the password field and submits the selected method', async () => {
+  const calls = [];
+  const page = browser({ fetch: async (url, options) => {
+    calls.push([url, JSON.parse(options.body)]);
+    return response({ sessionToken: 'test-session' });
+  } });
+  const element = id => page.context.document.getElementById(id);
+  element('accessEmail').value = 'parent@example.com';
+  for (const checked of [true, false]) {
+    element('passwordMethod').checked = checked;
+    element('adultMethod').dispatch('change');
+    assert.equal(element('adultPassword').disabled, !checked);
+    assert.equal(element('adultPasswordRow').classList.contains('hidden'), !checked);
+    assert.equal(element('adultPassword').value, '');
+    if (checked) element('adultPassword').value = 'test-password';
+    await element('adultLoginForm').dispatch('submit');
+  }
+  assert.deepEqual(calls, [
+    ['/api/login/adult', { email: 'parent@example.com', password: 'test-password' }],
+    ['/api/access/request', { email: 'parent@example.com' }]
+  ]);
 });
