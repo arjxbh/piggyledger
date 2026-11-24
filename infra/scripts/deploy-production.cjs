@@ -59,9 +59,10 @@ async function main(args) {
     }
     profile.push('--profile', args[1]);
   }
-  const aws = (service, operation, rest = []) => JSON.parse(execFileSync('aws', [
+  const runAws = (service, operation, rest = []) => execFileSync('aws', [
     service, operation, '--region', region, ...profile, '--no-cli-pager', '--output', 'json', ...rest,
-  ], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 }));
+  ], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+  const aws = (...args) => JSON.parse(runAws(...args));
   const cdk = (rest) => execFileSync(resolve(__dirname, '../node_modules/.bin/cdk'), [
     ...rest, ...profile,
   ], { cwd: resolve(__dirname, '..'), stdio: 'inherit' });
@@ -90,7 +91,7 @@ async function main(args) {
   assertSafeChanges(changeSet);
   console.log(JSON.stringify(changeSet.Changes, null, 2));
   // Execute the exact reviewed change set; never synthesize a second template.
-  aws('cloudformation', 'execute-change-set', ['--stack-name', stack, '--change-set-name', name]);
+  runAws('cloudformation', 'execute-change-set', ['--stack-name', stack, '--change-set-name', changeSet.ChangeSetId]);
   execFileSync('aws', ['cloudformation', 'wait', 'stack-update-complete', '--stack-name', stack,
     '--region', region, ...profile, '--no-cli-pager'], { stdio: 'inherit' });
   const after = aws('cloudformation', 'describe-stack-resource', ['--stack-name', stack, '--logical-resource-id', 'InstanceC1063A87']);

@@ -14,7 +14,17 @@ export interface PiggyLedgerStackProps extends cdk.StackProps {
 
 export class PiggyLedgerStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: PiggyLedgerStackProps) {
-    super(scope, id, props);
+    super(scope, id, { ...props, analyticsReporting: false });
+
+    // Preserve the deployed telemetry resource across application releases.
+    // CloudFormation treats changes to its Analytics property as conditional replacements.
+    const metadata = new cdk.CfnResource(new Construct(this, 'CDKMetadata'), 'Default', {
+      type: 'AWS::CDK::Metadata',
+      properties: {
+        Analytics: 'v2:deflate64:H4sIAAAAAAAA/1WQQW/CMAyFfwv34LEyTdoR0IQ4rWonrshNDQRaB8XOEKr636eWjo7T+/wU+T0ngeQ9gdkErzK15XlauQKaXNGeDV5l18h8hyKkAotOjMxhGe2ZdIlChmwCzfZizWrP23Rl0lhUzuaxYNLOGynzUekbi4pGf/QWIt46VOf58biDDSsFJl2j0hVvQ8wwLVTRHmtiNTnZGJze1sHHSx/wZGxYFNkOK0f+3KSD/CvQGoc1NJm/V+019ZWzffxIf4vS4PeuotaUN8balwU0jzt7aI1IDas9P4X035krHhwfTEbiY7iXSjFgTUqhG76iXqK2hn1JcJKXn+QNXj9gNjmJc9MQWV1NkN31F4i0B/TMAQAA',
+      },
+    });
+    metadata.overrideLogicalId('CDKMetadata');
 
     const appAsset = new s3assets.Asset(this, 'PiggyLedgerAppAsset', {
       path: props.appPath,
