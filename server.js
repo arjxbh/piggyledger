@@ -18,6 +18,7 @@ const publicApiPaths = new Set([
   '/api/signup',
   '/api/signup/verify',
   '/api/access/request',
+  '/api/login/adult',
   '/api/access-token/status',
   '/api/health'
 ]);
@@ -256,6 +257,33 @@ app.post('/api/session/exchange', async (req, res) => {
     sessionToken: sessionAccess.token,
     expiresAt: sessionAccess.expiresAt
   });
+});
+
+app.post('/api/login/adult', async (req, res) => {
+  if (!rateLimit(`adult-login:${req.ip}`, 15, 15 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many sign-in attempts. Try again later or use an email link.' });
+  }
+  const address = db.normalizeEmail(req.body?.email);
+  const password = req.body?.password;
+  const invalid = () => res.status(401).json({ error: 'Incorrect email or password.' });
+  if (!address || typeof password !== 'string' || !password) return invalid();
+
+  let match;
+  for (const { familyId, userId } of await db.familiesForEmail(address)) {
+    const data = await db.read(familyId);
+    const user = data?.users.find(u =>
+      u.id === userId && u.role === 'adult' && db.normalizeEmail(u.email) === address
+    );
+    if (!user || !await bcrypt.compare(password, user.secretHash)) continue;
+    if (match) {
+      return res.status(409).json({ error: 'These details match more than one family. Use an email link to choose your family.' });
+    }
+    match = { familyId, user };
+  }
+  if (!match) return invalid();
+  req.familyId = match.familyId;
+  const session = await createUserSession(req, match.user);
+  res.json({ user: publicUser(match.user), sessionToken: session.token, expiresAt: session.expiresAt });
 });
 
 app.post('/api/login', async (req, res) => {

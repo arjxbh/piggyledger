@@ -327,35 +327,50 @@ document.getElementById('backBtn').addEventListener('click', () => {
 document.getElementById('scanTokenBtn').addEventListener('click', () => startQrScan());
 document.getElementById('stopScanBtn').addEventListener('click', () => stopQrScan());
 document.getElementById('cancelScanBtn').addEventListener('click', () => stopQrScan());
-document.getElementById('emailAccessBtn').addEventListener('click', async () => {
-  const email = document.getElementById('accessEmail').value.trim();
-  const status = document.getElementById('emailAccessStatus');
-  if (!email) {
-    status.textContent = 'Type your email.';
-    return;
-  }
+const adultMethod = document.getElementById('adultMethod');
+const adultPassword = document.getElementById('adultPassword');
+const adultSubmit = document.getElementById('emailAccessBtn');
+const adultStatus = document.getElementById('emailAccessStatus');
 
-  const button = document.getElementById('emailAccessBtn');
-  button.disabled = true;
-  status.textContent = 'Sending your sign-in link...';
+adultMethod.addEventListener('change', () => {
+  const usePassword = adultMethod.value === 'password';
+  document.getElementById('adultPasswordRow').classList.toggle('hidden', !usePassword);
+  adultPassword.disabled = !usePassword;
+  adultPassword.value = '';
+  adultSubmit.textContent = usePassword ? 'Sign in' : 'Send me a link';
+  adultStatus.textContent = '';
+});
+
+document.getElementById('adultLoginForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (adultSubmit.disabled) return;
+  const email = document.getElementById('accessEmail').value.trim();
+  const usePassword = adultMethod.value === 'password';
+  const payload = usePassword ? { email, password: adultPassword.value } : { email };
+  adultSubmit.disabled = true;
+  adultMethod.disabled = true;
+  adultStatus.textContent = usePassword ? 'Signing in…' : 'Sending your sign-in link…';
   try {
-    const response = await fetch('/api/access/request', {
+    const response = await fetch(usePassword ? '/api/login/adult' : '/api/access/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+      body: JSON.stringify(payload)
     });
     const body = await response.json();
-    status.textContent = response.ok
-      ? 'Check your email for your sign-in link.'
-      : (body.error || 'We could not send the link. Try again.');
+    if (!response.ok) {
+      adultStatus.textContent = body.error || 'Please try again.';
+    } else if (usePassword) {
+      localStorage.setItem('piggyledger_access_token', body.sessionToken);
+      location.replace('/adult.html');
+    } else {
+      adultStatus.textContent = 'Check your email for your sign-in link.';
+    }
   } catch (error) {
-    status.textContent = 'We could not send the link. Try again.';
+    adultStatus.textContent = 'Check your connection and try again.';
   } finally {
-    button.disabled = false;
+    adultSubmit.disabled = false;
+    adultMethod.disabled = false;
   }
-});
-document.getElementById('accessEmail').addEventListener('keydown', event => {
-  if (event.key === 'Enter') document.getElementById('emailAccessBtn').click();
 });
 document.getElementById('switchFamilyBtn').addEventListener('click', async () => {
   clearAccessToken();

@@ -24,15 +24,27 @@
       </section>
 
       <section class="adult-login-card" id="emailAccessCard">
-        <h2>Are you an adult?</h2>
-        <p>Type your email. We will send you a link.</p>
-        <div class="form-row">
-          <label for="accessEmail">Your email</label>
-          <input type="email" id="accessEmail" autocomplete="email" placeholder="you@example.com">
-        </div>
-        <div class="form-actions">
-          <button class="btn btn-ghost" id="emailAccessBtn">Send me a link</button>
-        </div>
+        <h2>Adult sign-in</h2>
+        <form id="adultLoginForm" method="post">
+          <div class="form-row">
+            <label for="adultMethod">Sign in with</label>
+            <select id="adultMethod">
+              <option value="link">Email link</option>
+              <option value="password">Password</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="accessEmail">Your email</label>
+            <input type="email" id="accessEmail" autocomplete="username" placeholder="you@example.com" required>
+          </div>
+          <div class="form-row hidden" id="adultPasswordRow">
+            <label for="adultPassword">Your password</label>
+            <input type="password" id="adultPassword" autocomplete="current-password" required disabled>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-ghost" id="emailAccessBtn" type="submit">Send me a link</button>
+          </div>
+        </form>
         <div class="status-message" id="emailAccessStatus" aria-live="polite"></div>
       </section>
 

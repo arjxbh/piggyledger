@@ -510,3 +510,21 @@ test('API errors are returned as safe 500 responses', async () => {
     console.error = originalError;
   }
 });
+
+test('adult password sign-in works on a new device and rejects invalid credentials', async () => {
+  const client = new ApiClient(null);
+  const login = (email, password) => client.request('/api/login/adult', {
+    method: 'POST', body: { email, password }
+  });
+  const wrongPassword = await login('parent@example.com', 'wrong');
+  const unknownEmail = await login('unknown@example.com', 'adult-password');
+  assert.equal(wrongPassword.status, 401);
+  assert.equal(unknownEmail.status, 401);
+  assert.deepEqual(wrongPassword.body, unknownEmail.body);
+  const success = await login(' PARENT@example.com ', 'adult-password');
+  assert.equal(success.status, 200);
+  const restored = new ApiClient(success.body.sessionToken);
+  const me = await restored.request('/api/me');
+  assert.equal(me.body.user.role, 'adult');
+  assert.equal(me.body.user.id, 1);
+});
